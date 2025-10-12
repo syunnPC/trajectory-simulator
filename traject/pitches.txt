@@ -1,0 +1,8 @@
+#Sweeper
+Speed=130,Axis=(0,1,0),RPM=2500
+#Straight
+Speed=165,Axis=(0,0,1),RPM=2700
+#Change-Up
+Speed=145,Axis=(0,0,1),RPM=1250
+#Splitter
+Speed=130,Axis=(1,0,0),RPM=850
