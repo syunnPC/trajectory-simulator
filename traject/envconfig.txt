@@ -1,0 +1,14 @@
+#設定項目
+#PRESSURE=気圧（hPa）
+#HEIGHT=高さ（次のキーがTRUEの場合のみ有効）
+#USEHEIGHT=高さから気圧を自動計算する場合TRUE、そうしない場合FALSE（規定はFALSE）
+#SPEED=スピードスケール、実際の速度の1/nでレンダリングするのでnを指定
+#TEMP=気温（℃）
+#DT=シュミレーション時間幅
+#HUMID=湿度
+#RADIUS=ボール半径（mm）
+#MASS=ボール質量（kg）
+#これらの項目はすべて設定しなくてもOK
+
+SPEED=1
+DT=0.000001

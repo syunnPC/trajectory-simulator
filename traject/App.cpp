@@ -1,5 +1,7 @@
 #include "App.hpp"
 
+#include "PitchConfig.hpp"
+
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace PitchSim;
@@ -273,6 +275,56 @@ bool App::Initialize(HINSTANCE hInstance)
 	m_Params.Dt_s = 0.0001;
 	m_Params.StopOnGroundHit = true;
 
+	PitchSim::Config::EnvironmentSettings es{};
+	
+	if (PitchSim::Config::LoadEnvConfigFile("envconfig.txt", es))
+	{
+		if (es.Pressure_hPa.has_value())
+		{
+			m_Params.Pressure_hPa = es.Pressure_hPa.value();
+		}
+
+		if (es.UseHeightPressure.has_value())
+		{
+			m_Params.UseAltitudePressure = es.UseHeightPressure.value();
+		}
+
+		if (es.Height_m.has_value())
+		{
+			m_Params.Altitude_m = es.Height_m.value();
+		}
+
+		if (es.PitchSpeedScale.has_value())
+		{
+			m_TimeScale = es.PitchSpeedScale.value();
+		}
+
+		if (es.AirTemp_C.has_value())
+		{
+			m_Params.AirTemp_C = es.AirTemp_C.value();
+		}
+
+		if (es.Dt_s.has_value())
+		{
+			m_Params.Dt_s = es.Dt_s.value();
+		}
+
+		if (es.RelHumid_pct.has_value())
+		{
+			m_Params.RelHumidity_pct = es.RelHumid_pct.value();
+		}
+
+		if (es.Radius_mm.has_value())
+		{
+			m_Params.Radius_mm = es.Radius_mm.value();
+		}
+
+		if (es.Mass_kg.has_value())
+		{
+			m_Params.Mass_kg = es.Mass_kg.value();
+		}
+	}
+	
 	BuildGroundGrid();
 	try
 	{
@@ -282,6 +334,7 @@ bool App::Initialize(HINSTANCE hInstance)
 	{
 		return false;
 	}
+
 	Recompute();
 
 	m_LastTick = std::chrono::steady_clock::now();
@@ -529,7 +582,17 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			}
 			else if (wParam == VK_SPACE)
 			{
-				Recompute();
+				if (m_FilterSingle)
+				{
+					for (std::size_t i : m_FilterIndexList)
+					{
+						RestartAnimationForIndex(i);
+					}
+				}
+				else
+				{
+					RestartAnimationForAll();
+				}
 				return 0;
 			}
 			else if (wParam == 'H')

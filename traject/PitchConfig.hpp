@@ -21,5 +21,20 @@ namespace PitchSim::Config
 		std::optional<double> Azimuth_deg;
 	};
 
+	struct EnvironmentSettings
+	{
+		std::optional<double> Pressure_hPa;
+		std::optional<bool> UseHeightPressure;
+		std::optional<double> Height_m;
+		std::optional<double> PitchSpeedScale;
+		std::optional<double> AirTemp_C;
+		std::optional<double> Dt_s;
+		std::optional<double> RelHumid_pct;
+		std::optional<double> Radius_mm;
+		std::optional<double> Mass_kg;
+	};
+
 	bool LoadPitchConfigFile(const std::string& pathUtf8, std::vector<PitchEntry>& outList, std::size_t maxCount = 8);
+
+	bool LoadEnvConfigFile(const std::string& pathUtf8, EnvironmentSettings& outSettings);
 }

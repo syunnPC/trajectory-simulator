@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <limits>
+#include <map>
 
 namespace PitchSim::Config
 {
@@ -380,5 +381,178 @@ namespace PitchSim::Config
 		}
 
 		return !outList.empty();
+	}
+
+	bool LoadEnvConfigFile(const std::string& pathUtf8, EnvironmentSettings& outSettings)
+	{
+		std::ifstream ifs(pathUtf8);
+		if (!ifs)
+		{
+			return false;
+		}
+
+		std::string line;
+		std::map<std::string, std::string> set;
+		while (std::getline(ifs, line))
+		{
+			TrimInPlace(line);
+			if (line[0] == '#')
+			{
+				continue;
+			}
+
+			if (line.empty())
+			{
+				continue;
+			}
+
+			std::size_t n = line.find('=');
+			if (n == std::string::npos)
+			{
+				continue;
+			}
+
+			std::string key{};
+			std::string value{};
+			std::string keyUpper{};
+			std::string valueUpper{};
+
+			key = line.substr(0, n);
+			value = line.substr(n + 1, line.length() - key.length() - 1);
+
+			keyUpper.resize(key.size());
+			valueUpper.resize(value.size());
+
+			std::transform(key.begin(), key.end(), keyUpper.begin(), [](unsigned char c) {return std::toupper(c); });
+			std::transform(value.begin(), value.end(), valueUpper.begin(), [](unsigned char c) {return std::toupper(c); });
+
+			set[key] = value;
+		}
+
+		EnvironmentSettings& s = outSettings;
+
+		constexpr auto PRESSURE_SETTING_KEY = "PRESSURE";
+		constexpr auto PRESSURE_USEHEIGHT_KEY = "USEHEIGHT";
+		constexpr auto HEIGHT_KEY = "HEIGHT";
+		constexpr auto SPEED_SCALE_KEY = "SPEED";
+		constexpr auto AIR_TEMP_KEY = "TEMP";
+		constexpr auto DT_KEY = "DT";
+		constexpr auto RELHUMID_KEY = "HUMID";
+		constexpr auto RADIUS_KEY = "RADIUS";
+		constexpr auto MASS_KEY = "MASS";
+
+		if (set[PRESSURE_SETTING_KEY] != "")
+		{
+			try
+			{
+				s.Pressure_hPa = std::stod(set[PRESSURE_SETTING_KEY]);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		if (set[PRESSURE_USEHEIGHT_KEY] != "")
+		{
+			if (set[PRESSURE_USEHEIGHT_KEY] == "TRUE")
+			{
+				s.UseHeightPressure = true;
+			}
+			else if (set[PRESSURE_USEHEIGHT_KEY] == "FALSE")
+			{
+				s.UseHeightPressure = false;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		if (set[HEIGHT_KEY] != "")
+		{
+			try
+			{
+				s.Height_m = std::stod(set[HEIGHT_KEY]);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		if (set[SPEED_SCALE_KEY] != "")
+		{
+			try
+			{
+				s.PitchSpeedScale = (1 / std::stod(set[SPEED_SCALE_KEY]));
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		if (set[AIR_TEMP_KEY] != "")
+		{
+			try
+			{
+				s.AirTemp_C = std::stod(set[AIR_TEMP_KEY]);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		if (set[DT_KEY] != "")
+		{
+			try
+			{
+				s.Dt_s = std::stod(set[DT_KEY]);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		if (set[RELHUMID_KEY] != "")
+		{
+			try
+			{
+				s.RelHumid_pct = std::stod(set[DT_KEY]);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		if (set[RADIUS_KEY] != "")
+		{
+			try
+			{
+				s.Radius_mm = std::stod(set[RADIUS_KEY]);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		if (set[MASS_KEY] != "")
+		{
+			try
+			{
+				s.Mass_kg = std::stod(set[RADIUS_KEY]);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 }
