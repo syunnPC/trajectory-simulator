@@ -57,6 +57,8 @@ private:
 
 	bool m_MouseDown{ false };
 
+	bool m_ShowLabels{ true };
+
 	float m_DrawSpeed_mps{ 4.0f }; //‚¢‚ç‚È‚¢
 	float m_DrawLength_m{ 0.0f }; //‚¢‚ç‚È‚¢
 	std::size_t m_VisibleCount{ 0 };
@@ -414,57 +416,61 @@ int App::Run()
 				m_Renderer.DrawLineStrip(m_VisibleCounts[i]);
 			}
 
-			const auto view = m_Camera.GetViewMatrix();
-			const auto proj = m_Camera.GetProjMatrix();
-
-			m_Renderer.BeginText();
-
-			for (std::size_t i = 0; i < m_TrajectoryVertsList.size(); ++i)
+			if (m_ShowLabels)
 			{
-				const auto& verts = m_TrajectoryVertsList[i];
-				if (verts.empty())
-				{
-					continue;
-				}
+				const auto view = m_Camera.GetViewMatrix();
+				const auto proj = m_Camera.GetProjMatrix();
 
-				bool finished = (!m_Animate);
-				if (!finished)
+				m_Renderer.BeginText();
+
+				for (std::size_t i = 0; i < m_TrajectoryVertsList.size(); ++i)
 				{
-					if (i < m_VisibleCounts.size())
+					const auto& verts = m_TrajectoryVertsList[i];
+					if (verts.empty())
 					{
-						finished = (m_VisibleCounts[i] >= verts.size());
+						continue;
 					}
-					else
+
+					bool finished = (!m_Animate);
+					if (!finished)
 					{
-						finished = true;
+						if (i < m_VisibleCounts.size())
+						{
+							finished = (m_VisibleCounts[i] >= verts.size());
+						}
+						else
+						{
+							finished = true;
+						}
 					}
+					if (!finished)
+					{
+						continue;
+					}
+
+					XMFLOAT3 endPos = verts.back().Pos;
+					XMFLOAT2 sp{};
+
+					if (!ProjectToScreen(endPos, view, proj, m_Renderer.GetWidth(), m_Renderer.GetHeight(), sp))
+					{
+						continue;
+					}
+
+					std::wstring label = (i < m_Pitches.size()) ? Utf8ToWString(m_Pitches[i].Label) : std::format(L"Pitch {}", i + 1);
+
+					double speedKmh = (i < m_Pitches.size()) ? m_Pitches[i].Speed_kmh : m_Params.InitialSpeed_mps * 3.6;
+					double rpm = (i < m_Pitches.size()) ? m_Pitches[i].Rpm : m_Params.SpinRPM;
+
+					std::wstring text = std::format(L"{} {:.0f} km/h {:.0f} RPM", label, speedKmh, rpm);
+
+					D2D1_COLOR_F col = D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.98f);
+
+					sp.y -= i * 16.0f;
+					m_Renderer.DrawTextLabel(text, sp.x + 8.0f, sp.y - 18.0f, 18.0f, col);
 				}
-				if (!finished)
-				{
-					continue;
-				}
 
-				XMFLOAT3 endPos = verts.back().Pos;
-				XMFLOAT2 sp{};
-
-				if (!ProjectToScreen(endPos, view, proj, m_Renderer.GetWidth(), m_Renderer.GetHeight(), sp))
-				{
-					continue;
-				}
-
-				std::wstring label = (i < m_Pitches.size()) ? Utf8ToWString(m_Pitches[i].Label) : std::format(L"Pitch {}", i + 1);
-
-				double speedKmh = (i < m_Pitches.size()) ? m_Pitches[i].Speed_kmh : m_Params.InitialSpeed_mps * 3.6;
-				double rpm = (i < m_Pitches.size()) ? m_Pitches[i].Rpm : m_Params.SpinRPM;
-
-				std::wstring text = std::format(L"{} {:.0f} km/h {:.0f} RPM", label, speedKmh, rpm);
-
-				D2D1_COLOR_F col = D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.98f);
-
-				m_Renderer.DrawTextLabel(text, sp.x + 8.0f, sp.y - 18.0f, 18.0f, col);
+				m_Renderer.EndText();
 			}
-
-			m_Renderer.EndText();
 
 			m_Renderer.EndFrame();
 		}
@@ -545,6 +551,11 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				Recompute();
 				return 0;
 			}
+			else if (wParam == 'H')
+			{
+				m_ShowLabels = !m_ShowLabels;
+				return 0;
+			}
 			else
 			{
 				return 0;
@@ -595,7 +606,7 @@ void App::BuildGroundGrid()
 	m_Renderer.UploadGroundVertices(m_GroundVerts);
 }
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int)
+int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ PWSTR, _In_ int)
 {
 	gApp = std::make_unique<App>();
 	if (!gApp->Initialize(hInstance))
