@@ -300,6 +300,8 @@ bool App::Initialize(HINSTANCE hInstance)
 	wc.hInstance = hInstance;
 	wc.lpszClassName = WINDOW_CLASS_NAME;
 
+	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+
 	if (!RegisterClassEx(&wc))
 	{
 		return false;
