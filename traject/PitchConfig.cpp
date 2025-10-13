@@ -521,7 +521,7 @@ namespace PitchSim::Config
 		{
 			try
 			{
-				s.RelHumid_pct = std::stod(set[DT_KEY]);
+				s.RelHumid_pct = std::stod(set[RELHUMID_KEY]);
 			}
 			catch (...)
 			{
@@ -545,7 +545,7 @@ namespace PitchSim::Config
 		{
 			try
 			{
-				s.Mass_kg = std::stod(set[RADIUS_KEY]);
+				s.Mass_kg = std::stod(set[MASS_KEY]);
 			}
 			catch (...)
 			{
