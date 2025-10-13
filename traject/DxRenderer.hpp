@@ -45,6 +45,8 @@ public:
 	void DrawLineStrip(std::size_t vertexCount) noexcept;
 	void UploadGroundVertices(const std::vector<Vertex>& vertices);
 	void DrawGroundLineList(std::size_t vertexCount) noexcept;
+	void UploadStrikeZoneVertices(const std::vector<Vertex>& vertices);
+	void DrawStrikeZoneLineList(std::size_t vertexCount) noexcept;
 
 	void BeginText() noexcept;
 	void DrawTextLabel(const std::wstring& text, float x_px, float y_px, float size_px, const D2D1_COLOR_F& color) noexcept;
@@ -83,6 +85,8 @@ private:
 	Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> m_D2DBrush;
 	Microsoft::WRL::ComPtr<ID2D1Bitmap1> m_D2DTargetBitmap;
 	Microsoft::WRL::ComPtr<IDWriteFactory> m_DWriteFactory;
+
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_VbStrikeZone;
 
 	std::wstring m_DefaultFont{ L"Segoe UI" };
 

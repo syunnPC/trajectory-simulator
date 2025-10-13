@@ -32,6 +32,8 @@ namespace PitchSim::Config
 		std::optional<double> RelHumid_pct;
 		std::optional<double> Radius_mm;
 		std::optional<double> Mass_kg;
+		std::optional<double> ZoneSizeHeight_m;
+		std::optional<double> ZoneHeight_m;
 	};
 
 	bool LoadPitchConfigFile(const std::string& pathUtf8, std::vector<PitchEntry>& outList, std::size_t maxCount = 8);

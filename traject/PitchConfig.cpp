@@ -440,6 +440,8 @@ namespace PitchSim::Config
 		constexpr auto RELHUMID_KEY = "HUMID";
 		constexpr auto RADIUS_KEY = "RADIUS";
 		constexpr auto MASS_KEY = "MASS";
+		constexpr auto ZONE_HEIGHT_KEY = "ZONEHEIGHT";
+		constexpr auto ZONE_SIZE_HEIGHT_KEY = "ZONESIZEHEIGHT";
 
 		if (set[PRESSURE_SETTING_KEY] != "")
 		{
@@ -546,6 +548,30 @@ namespace PitchSim::Config
 			try
 			{
 				s.Mass_kg = std::stod(set[MASS_KEY]);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		if (set[ZONE_HEIGHT_KEY] != "")
+		{
+			try
+			{
+				s.ZoneHeight_m = std::stod(set[ZONE_HEIGHT_KEY]);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		if (set[ZONE_SIZE_HEIGHT_KEY] != "")
+		{
+			try
+			{
+				s.ZoneSizeHeight_m = std::stod(set[ZONE_SIZE_HEIGHT_KEY]);
 			}
 			catch (...)
 			{

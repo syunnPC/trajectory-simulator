@@ -8,6 +8,8 @@
 #HUMID=湿度
 #RADIUS=ボール半径（mm）
 #MASS=ボール質量（kg）
+#ZONEHEIGHT=ゾーン下限までの高さ（m）
+#ZONESIZEHEIGHT=ゾーン自体の高さ（m）
 #これらの項目はすべて設定しなくてもOK
 
 SPEED=1

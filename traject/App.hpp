@@ -39,6 +39,7 @@ private:
 	void ReloadConfigAndBuild();
 	void RestartAnimationForIndex(std::size_t i) noexcept;
 	void RestartAnimationForAll() noexcept;
+	void BuildStrikeZone();
 
 	HWND m_HWND{ nullptr };
 	DxRenderer m_Renderer;
@@ -54,6 +55,10 @@ private:
 
 	std::vector<PitchSim::Config::PitchEntry> m_Pitches;
 
+	std::vector<DxRenderer::Vertex> m_StrikeVerts;
+
+	bool m_ShowStrikeZone{ true };
+
 	PitchSim::SimParams m_Params;
 
 	bool m_MouseDown{ false };
@@ -61,6 +66,9 @@ private:
 	bool m_ShowLabels{ true };
 
 	bool m_FilterSingle{ false };
+
+	double m_StrikeZoneHeight_m;
+	double m_StrikeZoneSizeHeight_m;
 
 	std::vector<std::size_t> m_FilterIndexList;
 

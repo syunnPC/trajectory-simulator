@@ -275,6 +275,9 @@ bool App::Initialize(HINSTANCE hInstance)
 	m_Params.Dt_s = 0.0001;
 	m_Params.StopOnGroundHit = true;
 
+	m_StrikeZoneHeight_m = 0.45;
+	m_StrikeZoneSizeHeight_m = 0.72;
+
 	PitchSim::Config::EnvironmentSettings es{};
 	
 	if (PitchSim::Config::LoadEnvConfigFile("envconfig.txt", es))
@@ -334,6 +337,7 @@ bool App::Initialize(HINSTANCE hInstance)
 	{
 		return false;
 	}
+	BuildStrikeZone();
 
 	Recompute();
 
@@ -424,13 +428,15 @@ int App::Run()
 
 			m_Renderer.DrawGroundLineList(m_GroundVerts.size());
 
+			if (m_ShowStrikeZone)
+			{
+				m_Renderer.DrawStrikeZoneLineList(m_StrikeVerts.size());
+			}
+
+			m_Renderer.DrawLineStrip(m_Vertices.size());
+
 			for (std::size_t i = 0; i < m_TrajectoryVertsList.size(); ++i)
 			{
-				if (m_FilterSingle && static_cast<int>(i) != m_FilterIndex)
-				{
-					//continue;
-				}
-
 				if (m_FilterSingle && !std::ranges::contains(m_FilterIndexList, i))
 				{
 					continue;
@@ -643,6 +649,11 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				RestartAnimationForAll();
 				return 0;
 			}
+			else if (wParam == 'Z')
+			{
+				m_ShowStrikeZone = !m_ShowStrikeZone;
+				return 0;
+			}
 			else
 			{
 				return 0;
@@ -691,4 +702,43 @@ void App::BuildGroundGrid()
 	}
 
 	m_Renderer.UploadGroundVertices(m_GroundVerts);
+}
+
+void App::BuildStrikeZone()
+{
+	m_StrikeVerts.clear();
+
+	const float x = 18.44f;
+	const float halfW = 0.216f;
+	const float y0 = m_StrikeZoneHeight_m;
+	const float y1 = y0 + m_StrikeZoneSizeHeight_m;
+
+	const float zL = -halfW;
+	const float zR = +halfW;
+
+	const XMFLOAT4 frameCol{ 0.95f, 0.35f, 0.10f, 1.0f };
+	const XMFLOAT4 meshCol{ 0.95f, 0.60f, 0.30f, 1.0f };
+
+	auto addLine = [&](const XMFLOAT3& a, const XMFLOAT3& b, const XMFLOAT4& c)
+	{
+		m_StrikeVerts.emplace_back(DxRenderer::Vertex{ a,c });
+		m_StrikeVerts.emplace_back(DxRenderer::Vertex{ b,c });
+	};
+
+	addLine(XMFLOAT3{ x, y0, zL }, XMFLOAT3{ x, y0, zR }, frameCol);
+	addLine(XMFLOAT3{ x, y1, zL }, XMFLOAT3{ x, y1, zR }, frameCol);
+	addLine(XMFLOAT3{ x, y0, zL }, XMFLOAT3{ x, y1, zL }, frameCol);
+	addLine(XMFLOAT3{ x, y0, zR }, XMFLOAT3{ x, y1, zR }, frameCol);
+
+	const float zV1 = -halfW / 3.0f;
+	const float zV2 = +halfW / 3.0f;
+	addLine(XMFLOAT3{ x, y0, zV1 }, XMFLOAT3{ x, y1, zV1 }, meshCol);
+	addLine(XMFLOAT3{ x, y0, zV2 }, XMFLOAT3{ x, y1, zV2 }, meshCol);
+
+	const float yH1 = y0 + m_StrikeZoneSizeHeight_m / 3.0f;
+	const float yH2 = y0 + 2.0f * m_StrikeZoneSizeHeight_m / 3.0f;
+	addLine(XMFLOAT3{ x, yH1, zL }, XMFLOAT3{ x, yH1, zR }, meshCol);
+	addLine(XMFLOAT3{ x, yH2, zL }, XMFLOAT3{ x, yH2, zR }, meshCol);
+
+	m_Renderer.UploadStrikeZoneVertices(m_StrikeVerts);
 }

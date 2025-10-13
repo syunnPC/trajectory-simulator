@@ -547,3 +547,63 @@ void DxRenderer::EndText() noexcept
 
 	m_D2DContext->EndDraw();
 }
+
+void DxRenderer::UploadStrikeZoneVertices(const std::vector<Vertex>& vertices)
+{
+	if (!m_VbStrikeZone)
+	{
+		D3D11_BUFFER_DESC bd{};
+		bd.ByteWidth = static_cast<UINT>(sizeof(Vertex) * std::max<std::size_t>(1, vertices.size()));
+		bd.Usage = D3D11_USAGE_DYNAMIC;
+		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bd.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+		HRESULT hr = m_Device->CreateBuffer(&bd, nullptr, m_VbStrikeZone.GetAddressOf());
+		if (FAILED(hr))
+		{
+			return;
+		}
+	}
+	else
+	{
+		m_VbStrikeZone.Reset();
+		D3D11_BUFFER_DESC bd{};
+		bd.ByteWidth = static_cast<UINT>(sizeof(Vertex) * std::max<std::size_t>(1, vertices.size()));
+		bd.Usage = D3D11_USAGE_DYNAMIC;
+		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bd.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+		HRESULT hr = m_Device->CreateBuffer(&bd, nullptr, m_VbStrikeZone.GetAddressOf());
+		if (FAILED(hr))
+		{
+			return;
+		}
+	}
+
+	D3D11_MAPPED_SUBRESOURCE ms{};
+	HRESULT hr = m_Context->Map(m_VbStrikeZone.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms);
+	if (SUCCEEDED(hr))
+	{
+		std::memcpy(ms.pData, vertices.data(), sizeof(Vertex) * vertices.size());
+		m_Context->Unmap(m_VbStrikeZone.Get(), 0);
+	}
+}
+
+void DxRenderer::DrawStrikeZoneLineList(std::size_t vertexCount) noexcept
+{
+	if (!m_VbStrikeZone)
+	{
+		return;
+	}
+
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+
+	m_Context->IASetInputLayout(m_InputLayout.Get());
+	m_Context->IASetVertexBuffers(0, 1, m_VbStrikeZone.GetAddressOf(), &stride, &offset);
+	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+
+	m_Context->VSSetShader(m_Vs.Get(), nullptr, 0);
+	m_Context->PSSetShader(m_Ps.Get(), nullptr, 0);
+	m_Context->VSSetConstantBuffers(0, 1, m_CbScene.GetAddressOf());
+
+	m_Context->Draw(static_cast<UINT>(vertexCount), 0);
+}
