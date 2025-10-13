@@ -495,7 +495,7 @@ int App::Run()
 					double speedKmh = (i < m_Pitches.size()) ? m_Pitches[i].Speed_kmh : m_Params.InitialSpeed_mps * 3.6;
 					double rpm = (i < m_Pitches.size()) ? m_Pitches[i].Rpm : m_Params.SpinRPM;
 
-					std::wstring text = std::format(L"{} {:.0f} km/h {:.0f} RPM", label, speedKmh, rpm);
+					std::wstring text = std::format(L"{}: {} {:.0f} km/h {:.0f} RPM",i+1, label, speedKmh, rpm);
 
 					D2D1_COLOR_F col = D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.98f);
 
