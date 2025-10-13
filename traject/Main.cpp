@@ -186,6 +186,21 @@ void App::ReloadConfigAndBuild()
 		p.InitialSpeed_mps = KmphToMps(pe.Speed_kmh);
 		p.SpinAxis = pe.Axis;
 		p.SpinRPM = pe.Rpm;
+		
+		if (pe.Release_cm.has_value())
+		{
+			p.ReleaseHeight_cm = pe.Release_cm.value();
+		}
+
+		if (pe.Elevation_deg.has_value())
+		{
+			p.Elevation_deg = pe.Elevation_deg.value();
+		}
+
+		if (pe.Azimuch_deg.has_value())
+		{
+			p.Azimuth_deg = pe.Azimuch_deg.value();
+		}
 
 		std::vector<Float3> pts;
 		m_Simulator.Simulate(p, pts);
@@ -292,7 +307,7 @@ bool App::Initialize(HINSTANCE hInstance)
 	m_Params.Pressure_hPa = 1013.25;
 	m_Params.UseAltitudePressure = false;
 	m_Params.Altitude_m = 0.0;
-	m_Params.Dt_s = 0.0005;
+	m_Params.Dt_s = 0.0001;
 	m_Params.StopOnGroundHit = true;
 
 	BuildGroundGrid();

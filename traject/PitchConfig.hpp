@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <optional>
 
 #include "Physics.hpp"
 
@@ -14,6 +15,10 @@ namespace PitchSim::Config
 		double Speed_kmh = 0.0;
 		PitchSim::DVec3 Axis{ 0.0, 1.0, 0.0 };
 		double Rpm = 0.0;
+
+		std::optional<double> Release_cm;
+		std::optional<double> Elevation_deg;
+		std::optional<double> Azimuch_deg;
 	};
 
 	bool LoadPitchConfigFile(const std::string& pathUtf8, std::vector<PitchEntry>& outList, std::size_t maxCount = 8);

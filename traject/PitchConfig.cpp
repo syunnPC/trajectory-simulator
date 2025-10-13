@@ -185,6 +185,118 @@ namespace PitchSim::Config
 
 			return okSpeed && okAxis && okRpm;
 		}
+
+		inline bool ParseLineKV(const std::string& line, double& speed_kmh, PitchSim::DVec3& axis, double& rpm, std::optional<double>& release_cm, std::optional<double>& elevation_deg, std::optional<double>& azimuth_deg)
+		{
+			std::string s = line;
+			TrimInPlace(s);
+			if (s.empty())
+			{
+				return false;
+			}
+
+			std::vector<std::string> toks = SplitTopLevelCsv(s);
+			if (toks.empty())
+			{
+				return false;
+			}
+
+			bool okSpeed = false;
+			bool okAxis = false;
+			bool okRpm = false;
+
+			for (const std::string& tRaw : toks)
+			{
+				std::string t = tRaw;
+				TrimInPlace(t);
+
+				if (StartsWithCI(t, "Speed="))
+				{
+					std::string v = t.substr(t.find('=') + 1);
+					TrimInPlace(v);
+					try
+					{
+						speed_kmh = std::stod(v);
+						okSpeed = true;
+					}
+					catch (...)
+					{
+						return false;
+					}
+				}
+				else if (StartsWithCI(t, "Axis="))
+				{
+					if (!ParseAxis(t, axis))
+					{
+						return false;
+					}
+
+					okAxis = true;
+				}
+				else if (StartsWithCI(t, "RPM="))
+				{
+					std::string v = t.substr(t.find('=') + 1);
+					TrimInPlace(v);
+					try
+					{
+						rpm = std::stod(v);
+						okRpm = true;
+					}
+					catch (...)
+					{
+						return false;
+					}
+				}
+				else if (StartsWithCI(t, "Release=") || StartsWithCI(t, "ReleaseHeight="))
+				{
+					std::string v = t.substr(t.find('=') + 1);
+					TrimInPlace(v);
+					try
+					{
+						double val = std::stod(v);
+						release_cm = val;
+					}
+					catch (...)
+					{
+						return false;
+					}
+				}
+				else if (StartsWithCI(t, "Elevation="))
+				{
+					std::string v = t.substr(t.find('=') + 1);
+					TrimInPlace(v);
+					try
+					{
+						double val = std::stod(v);
+						elevation_deg = val;
+					}
+					catch (...)
+					{
+						return false;
+					}
+				}
+				else if (StartsWithCI(t, "Azimuth="))
+				{
+					std::string v = t.substr(t.find('=') + 1);
+					TrimInPlace(v);
+					try
+					{
+						double val = std::stod(v);
+						azimuth_deg = val;
+					}
+					catch (...)
+					{
+						return false;
+					}
+				}
+				else
+				{
+					//–³Ž‹
+				}
+			}
+
+			return okSpeed && okAxis && okRpm;
+		}
 	}
 
 	bool LoadPitchConfigFile(const std::string& pathUtf8, std::vector<PitchEntry>& outList, std::size_t maxCount)
@@ -215,6 +327,11 @@ namespace PitchSim::Config
 				continue;
 			}
 
+			if (line[0] == '/')
+			{
+				continue;
+			}
+
 			if (line[0] == '#')
 			{
 				currentLabel = line.substr(1);
@@ -225,19 +342,27 @@ namespace PitchSim::Config
 			if (!currentLabel.empty())
 			{
 				double spd = 0.0;
-				PitchSim::DVec3 axis{ 0.0, 1.0, 0.0 };
+				PitchSim::DVec3 axis{ 0.0, 0.0, 0.0 };
 				double rpm = 0.0;
 
-				if (ParseLineKV(line, spd, axis, rpm))
+				std::optional<double> rel;
+				std::optional<double> elv;
+				std::optional<double> azm;
+
+				if (ParseLineKV(line, spd, axis, rpm, rel, elv, azm))
 				{
 					PitchEntry e;
 					e.Label = currentLabel;
 					e.Speed_kmh = spd;
 					e.Axis = axis;
 					e.Rpm = rpm;
-					outList.emplace_back(e);
+					e.Release_cm = rel;
+					e.Elevation_deg = elv;
+					e.Azimuch_deg = azm;
 
+					outList.emplace_back(e);
 					currentLabel.clear();
+
 					if (outList.size() >= maxCount)
 					{
 						break;
