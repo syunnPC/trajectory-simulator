@@ -18,7 +18,7 @@ namespace PitchSim::Config
 
 		std::optional<double> Release_cm;
 		std::optional<double> Elevation_deg;
-		std::optional<double> Azimuch_deg;
+		std::optional<double> Azimuth_deg;
 	};
 
 	bool LoadPitchConfigFile(const std::string& pathUtf8, std::vector<PitchEntry>& outList, std::size_t maxCount = 8);

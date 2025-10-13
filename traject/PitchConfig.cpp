@@ -358,7 +358,7 @@ namespace PitchSim::Config
 					e.Rpm = rpm;
 					e.Release_cm = rel;
 					e.Elevation_deg = elv;
-					e.Azimuch_deg = azm;
+					e.Azimuth_deg = azm;
 
 					outList.emplace_back(e);
 					currentLabel.clear();
