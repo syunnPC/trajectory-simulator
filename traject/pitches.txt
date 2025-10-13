@@ -7,7 +7,7 @@ Speed=165,Axis=(0.0,0.0,1.0),RPM=2300,Release=160,Elevation=-1.5,Azimuth=0.0
 Speed=130,Axis=(0.0,0.500,-0.866),RPM=2600,Release=160,Elevation=4.0,Azimuth=2.0
 
 #フォーク
-Speed=130,Axis=(0.0,0.2,-1.0),RPM=900,Release=160,Elevation=-4.0,Azimuth=-5.0
+Speed=130,Axis=(0.0,0.2,-1.0),RPM=900,Release=160,Elevation=1.0,Azimuth=0.0
 
 #スライダー
 Speed=145,Axis=(0.0,0.9397,-0.3420),RPM=2400,Release=160,Elevation=0.8,Azimuth=1.0

@@ -44,6 +44,11 @@ bool DxRenderer::Initialize(HWND hwnd, std::uint32_t width, std::uint32_t height
 		return false;
 	}
 
+	if (!CreateFixedStates())
+	{
+		return false;
+	}
+
 	if (!CreateTextResources())
 	{
 		return false;
@@ -556,7 +561,7 @@ void DxRenderer::UploadStrikeZoneVertices(const std::vector<Vertex>& vertices)
 		bd.ByteWidth = static_cast<UINT>(sizeof(Vertex) * std::max<std::size_t>(1, vertices.size()));
 		bd.Usage = D3D11_USAGE_DYNAMIC;
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bd.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 		HRESULT hr = m_Device->CreateBuffer(&bd, nullptr, m_VbStrikeZone.GetAddressOf());
 		if (FAILED(hr))
 		{
@@ -570,7 +575,7 @@ void DxRenderer::UploadStrikeZoneVertices(const std::vector<Vertex>& vertices)
 		bd.ByteWidth = static_cast<UINT>(sizeof(Vertex) * std::max<std::size_t>(1, vertices.size()));
 		bd.Usage = D3D11_USAGE_DYNAMIC;
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bd.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 		HRESULT hr = m_Device->CreateBuffer(&bd, nullptr, m_VbStrikeZone.GetAddressOf());
 		if (FAILED(hr))
 		{
@@ -606,4 +611,105 @@ void DxRenderer::DrawStrikeZoneLineList(std::size_t vertexCount) noexcept
 	m_Context->VSSetConstantBuffers(0, 1, m_CbScene.GetAddressOf());
 
 	m_Context->Draw(static_cast<UINT>(vertexCount), 0);
+}
+
+bool DxRenderer::CreateFixedStates()
+{
+	D3D11_BLEND_DESC bd{};
+	bd.RenderTarget[0].BlendEnable = TRUE;
+	bd.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	bd.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	bd.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	bd.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	bd.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+	bd.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	HRESULT hr = m_Device->CreateBlendState(&bd, m_BlendAlpha.GetAddressOf());
+	if (FAILED(hr))
+	{
+		return false;
+	}
+
+	D3D11_RASTERIZER_DESC rs{};
+	rs.FillMode = D3D11_FILL_SOLID;
+	rs.CullMode = D3D11_CULL_NONE;
+	rs.DepthClipEnable = TRUE;
+
+	hr = m_Device->CreateRasterizerState(&rs, m_RsNoCull.GetAddressOf());
+	if (FAILED(hr))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+void DxRenderer::UploadCircleVertices(const std::vector<Vertex>& vertices)
+{
+	if (!m_VbCircle)
+	{
+		D3D11_BUFFER_DESC bd{};
+		bd.ByteWidth = static_cast<UINT>(sizeof(Vertex) * std::max<std::size_t>(1, vertices.size()));
+		bd.Usage = D3D11_USAGE_DYNAMIC;
+		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+		HRESULT hr = m_Device->CreateBuffer(&bd, nullptr, m_VbCircle.GetAddressOf());
+		if (FAILED(hr))
+		{
+			return;
+		}
+	}
+	else
+	{
+		m_VbCircle.Reset();
+
+		D3D11_BUFFER_DESC bd{};
+		bd.ByteWidth = static_cast<UINT>(sizeof(Vertex) * std::max<std::size_t>(1, vertices.size()));
+		bd.Usage = D3D11_USAGE_DYNAMIC;
+		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+		HRESULT hr = m_Device->CreateBuffer(&bd, nullptr, m_VbCircle.GetAddressOf());
+		if (FAILED(hr))
+		{
+			return;
+		}
+	}
+
+	D3D11_MAPPED_SUBRESOURCE ms{};
+	HRESULT hr = m_Context->Map(m_VbCircle.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms);
+	if (SUCCEEDED(hr))
+	{
+		std::memcpy(ms.pData, vertices.data(), sizeof(Vertex) * vertices.size());
+		m_Context->Unmap(m_VbCircle.Get(), 0);
+	}
+}
+
+void DxRenderer::DrawCircleTriangles(std::size_t vertexCount) noexcept
+{
+	if (!m_VbCircle || vertexCount == 0)
+	{
+		return;
+	}
+
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+
+	m_Context->OMSetBlendState(m_BlendAlpha.Get(), nullptr, 0xFFFFFFFF);
+	m_Context->RSSetState(m_RsNoCull.Get());
+
+	m_Context->IASetInputLayout(m_InputLayout.Get());
+	m_Context->IASetVertexBuffers(0, 1, m_VbCircle.GetAddressOf(), &stride, &offset);
+	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	m_Context->VSSetShader(m_Vs.Get(), nullptr, 0);
+	m_Context->PSSetShader(m_Ps.Get(), nullptr, 0);
+	m_Context->VSSetConstantBuffers(0, 1, m_CbScene.GetAddressOf());
+
+	m_Context->Draw(static_cast<UINT>(vertexCount), 0);
+
+	m_Context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
+	m_Context->RSSetState(nullptr);
 }

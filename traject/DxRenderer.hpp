@@ -47,6 +47,8 @@ public:
 	void DrawGroundLineList(std::size_t vertexCount) noexcept;
 	void UploadStrikeZoneVertices(const std::vector<Vertex>& vertices);
 	void DrawStrikeZoneLineList(std::size_t vertexCount) noexcept;
+	void UploadCircleVertices(const std::vector<Vertex>& vertices);
+	void DrawCircleTriangles(std::size_t vertexCount) noexcept;
 
 	void BeginText() noexcept;
 	void DrawTextLabel(const std::wstring& text, float x_px, float y_px, float size_px, const D2D1_COLOR_F& color) noexcept;
@@ -65,6 +67,8 @@ private:
 
 	bool CreateTextResources();
 	bool CreateTextTargetBitmap();
+
+	bool CreateFixedStates();
 
 	Microsoft::WRL::ComPtr<ID3D11Device> m_Device;
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_Context;
@@ -87,6 +91,10 @@ private:
 	Microsoft::WRL::ComPtr<IDWriteFactory> m_DWriteFactory;
 
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_VbStrikeZone;
+
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_VbCircle;
+	Microsoft::WRL::ComPtr<ID3D11BlendState> m_BlendAlpha;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_RsNoCull;
 
 	std::wstring m_DefaultFont{ L"Segoe UI" };
 

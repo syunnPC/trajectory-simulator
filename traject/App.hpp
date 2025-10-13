@@ -57,6 +57,11 @@ private:
 
 	std::vector<DxRenderer::Vertex> m_StrikeVerts;
 
+	std::vector<DxRenderer::Vertex> m_CircleVerts; //‚¢‚ç‚È‚¢
+	std::vector<DxRenderer::Vertex> m_CircleVertsAll; //‚¢‚ç‚È‚¢
+
+	std::vector<std::vector<DxRenderer::Vertex>> m_CircleVertsList;
+
 	bool m_ShowStrikeZone{ true };
 
 	PitchSim::SimParams m_Params;
@@ -66,6 +71,8 @@ private:
 	bool m_ShowLabels{ true };
 
 	bool m_FilterSingle{ false };
+
+	bool m_ShowBalls{ true };
 
 	double m_StrikeZoneHeight_m;
 	double m_StrikeZoneSizeHeight_m;

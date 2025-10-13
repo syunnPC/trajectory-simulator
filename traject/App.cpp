@@ -146,6 +146,9 @@ void App::ReloadConfigAndBuild()
 	m_TimeElapsed_s.clear();
 	m_TrajDuration_s.clear();
 
+	//m_CircleVerts.clear();
+	m_CircleVertsList.clear();
+
 	for (std::size_t i = 0; i < m_Pitches.size(); ++i)
 	{
 		const PitchEntry& pe = m_Pitches[i];
@@ -204,7 +207,72 @@ void App::ReloadConfigAndBuild()
 		}
 
 		m_TrajectoryVertsList.emplace_back(std::move(verts));
-		const std::size_t ns = m_TrajectoryVertsList.back().size();
+		m_ArcLenList_m.emplace_back(std::move(arc));
+
+		const float plateX = PLATE_DISTANCE_M;
+		const auto& vlist = m_TrajectoryVertsList.back();
+		const std::size_t vn = vlist.size();
+		std::optional<XMFLOAT3> hit;
+
+		if (vn >= 2)
+		{
+			for (std::size_t k = 1; k < vn; ++k)
+			{
+				const auto& a = vlist[k - 1].Pos;
+				const auto& b = vlist[k].Pos;
+
+				if (a.x <= plateX && b.x >= plateX)
+				{
+					float t = (std::abs(b.x - a.x) > 1e-6f) ? ((plateX - a.x) / (b.x - a.x)) : 0.0f;
+					t = std::clamp(t, 0.0f, 1.0f);
+					hit = XMFLOAT3
+					{
+						plateX,
+						a.y + (b.y - a.y) * t,
+						a.z + (b.z - a.z) * t
+					};
+
+					break;
+				}
+			}
+		}
+
+		if (hit.has_value())
+		{
+			const float r = static_cast<float>(m_Params.Radius_mm * 1e-3);
+			const int segs = 48;
+			const XMFLOAT4 fillCol{ base.x, base.y, base.z, 0.35f };
+
+			std::vector<DxRenderer::Vertex> circle;
+			circle.reserve(segs * 3);
+
+			auto addTri = [&](const XMFLOAT3& p0, const XMFLOAT3& p1, const XMFLOAT3& p2)
+			{
+				circle.emplace_back(DxRenderer::Vertex{ p0, fillCol });
+				circle.emplace_back(DxRenderer::Vertex{ p1, fillCol });
+				circle.emplace_back(DxRenderer::Vertex{ p2, fillCol });
+			};
+
+			const float cx = hit->x;
+			const float cy = hit->y;
+			const float cz = hit->z;
+
+			constexpr float PI = 3.14159265358979323846f;
+
+			for (int s = 0; s < segs; ++s)
+			{
+				float a0 = 2.0f * PI * (static_cast<float>(s) / segs);
+				float a1 = 2.0f * PI * (static_cast<float>(s + 1) / segs);
+				XMFLOAT3 p0{ cx, cy, cz };
+				XMFLOAT3 p1{ cx, cy + r * std::cos(a0), cz + r * std::sin(a0) };
+				XMFLOAT3 p2{ cx, cy + r * std::cos(a1), cz + r * std::sin(a1) };
+				addTri(p0, p1, p2);
+			}
+
+			m_CircleVertsList.emplace_back(std::move(circle));
+		}
+
+		const std::size_t ns = vn;
 
 		double trajSec = 0.0;
 		if (ns >= 2)
@@ -221,6 +289,7 @@ void App::ReloadConfigAndBuild()
 
 	m_DrawLength_m = 0.0f;
 	m_Animate = true;
+	//m_Renderer.UploadCircleVertices(m_CircleVerts);
 }
 
 bool App::Initialize(HINSTANCE hInstance)
@@ -348,7 +417,28 @@ bool App::Initialize(HINSTANCE hInstance)
 
 void App::Recompute()
 {
-	ReloadConfigAndBuild();
+	std::vector<Float3> pts;
+	m_Simulator.Simulate(m_Params, pts);
+
+	m_Vertices.clear();
+	m_Vertices.reserve(pts.size());
+
+	const std::size_t n = pts.size();
+	for (std::size_t i = 0; i < n; ++i)
+	{
+		float t = (n > 1) ? static_cast<float>(i) / static_cast<float>(n - 1) : 0.0f;
+		XMFLOAT4 col
+		{
+			0.1f * (1.0f - t) + 0.8f * t,
+			0.9f * (1.0f - t) + 1.0f * t,
+			1.0f,
+			1.0f
+		};
+
+		m_Vertices.emplace_back(DxRenderer::Vertex{ XMFLOAT3{pts[i].X, pts[i].Y, pts[i].Z}, col });
+	}
+
+	m_Renderer.UploadLineVertices(m_Vertices);
 }
 
 void App::UpdateAnimation(double dt_s)
@@ -433,8 +523,6 @@ int App::Run()
 				m_Renderer.DrawStrikeZoneLineList(m_StrikeVerts.size());
 			}
 
-			m_Renderer.DrawLineStrip(m_Vertices.size());
-
 			for (std::size_t i = 0; i < m_TrajectoryVertsList.size(); ++i)
 			{
 				if (m_FilterSingle && !std::ranges::contains(m_FilterIndexList, i))
@@ -444,6 +532,28 @@ int App::Run()
 
 				m_Renderer.UploadLineVertices(m_TrajectoryVertsList[i]);
 				m_Renderer.DrawLineStrip(m_VisibleCounts[i]);
+
+				const auto& verts = m_TrajectoryVertsList[i];
+				bool finished = false;
+
+				if (!m_Animate)
+				{
+					finished = true;
+				}
+				else if (i < m_VisibleCounts.size())
+				{
+					finished = (m_VisibleCounts[i] >= verts.size());
+				}
+				else
+				{
+					finished = true;
+				}
+
+				if (m_ShowBalls && finished && i < m_CircleVertsList.size() && !m_CircleVertsList[i].empty())
+				{
+					m_Renderer.UploadCircleVertices(m_CircleVertsList[i]);
+					m_Renderer.DrawCircleTriangles(m_CircleVertsList[i].size());
+				}
 			}
 
 			if (m_ShowLabels)
@@ -604,6 +714,11 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			else if (wParam == 'H')
 			{
 				m_ShowLabels = !m_ShowLabels;
+				return 0;
+			}
+			else if (wParam == 'C')
+			{
+				m_ShowBalls = !m_ShowBalls;
 				return 0;
 			}
 			else if (wParam >= '1' && wParam <= '8')

@@ -158,6 +158,9 @@
     <ClCompile Include="PitchConfig.hpp" />
     <ClCompile Include="TrajectorySimulator.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="pitches.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
