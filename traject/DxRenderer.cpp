@@ -74,7 +74,7 @@ bool DxRenderer::Initialize(HWND hwnd, std::uint32_t width, std::uint32_t height
 
 bool DxRenderer::Resize(std::uint32_t width, std::uint32_t height)
 {
-	if (!m_Device || !m_SwapChain)
+	if (!m_Device)
 	{
 		return false;
 	}
@@ -83,15 +83,6 @@ bool DxRenderer::Resize(std::uint32_t width, std::uint32_t height)
 	{
 		return true;
 	}
-
-	ID3D11RenderTargetView* nullRtv[1]{ nullptr };
-	m_Context->OMSetRenderTargets(1, nullRtv, nullptr);
-
-	if (m_D2DContext)
-	{
-		m_D2DContext->SetTarget(nullptr);
-	}
-	m_D2DTargetBitmap.Reset();
 
 	ReleaseSizeDependentResources();
 
@@ -104,15 +95,6 @@ bool DxRenderer::Resize(std::uint32_t width, std::uint32_t height)
 	if (!CreateRenderTargets(width, height))
 	{
 		return false;
-	}
-
-	if (m_D2DContext)
-	{
-		m_D2DTargetBitmap.Reset();
-		if (!CreateTextTargetBitmap())
-		{
-			return false;
-		}
 	}
 
 	m_Width = width;
@@ -135,18 +117,23 @@ void DxRenderer::BeginFrame() noexcept
 		return;
 	}
 
+	m_ResolvedFrame = false;
+
+	ID3D11RenderTargetView* rtv = m_MsaaActive ? m_RtvMsaa.Get() : m_Rtv.Get();
+
 	float clear[4]{ 0.05f, 0.07f, 0.12f, 1.0f };
 
-	m_Context->OMSetRenderTargets(1, m_Rtv.GetAddressOf(), m_Dsv.Get());
+	m_Context->OMSetRenderTargets(1, &rtv, m_Dsv.Get());
 	m_Context->RSSetViewports(1, &m_Viewport);
 
-	m_Context->ClearRenderTargetView(m_Rtv.Get(), clear);
+	m_Context->ClearRenderTargetView(rtv, clear);
 	m_Context->ClearDepthStencilView(m_Dsv.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 }
 
 void DxRenderer::EndFrame() noexcept
 {
-	m_SwapChain->Present(0, 0);
+	ResolveMsaa();
+	m_SwapChain->Present(1, 0);
 }
 
 void DxRenderer::UpdateSceneCB(const CbScene& cb)
@@ -158,6 +145,11 @@ void DxRenderer::UpdateSceneCB(const CbScene& cb)
 		std::memcpy(ms.pData, &cb, sizeof(cb));
 		m_Context->Unmap(m_CbScene.Get(), 0);
 	}
+}
+
+void DxRenderer::SetMSAACount(int msaa)
+{
+	m_MsaaCount = msaa;
 }
 
 void DxRenderer::UploadLineVertices(const std::vector<Vertex>& vertices)
@@ -297,6 +289,7 @@ bool DxRenderer::CreateDeviceAndSwap(HWND hwnd, std::uint32_t width, std::uint32
 	sd.BufferDesc.Height = height;
 	sd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 	sd.SampleDesc.Count = 1;
+	sd.SampleDesc.Quality = 0;
 	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	sd.BufferCount = 2;
 	sd.OutputWindow = hwnd;
@@ -321,6 +314,7 @@ bool DxRenderer::CreateDeviceAndSwap(HWND hwnd, std::uint32_t width, std::uint32
 
 bool DxRenderer::CreateRenderTargets(std::uint32_t width, std::uint32_t height)
 {
+	m_BackBufferTex.Reset();
 	ComPtr<ID3D11Texture2D> back;
 	HRESULT hr = m_SwapChain->GetBuffer(0, IID_PPV_ARGS(&back));
 	if (FAILED(hr))
@@ -328,22 +322,71 @@ bool DxRenderer::CreateRenderTargets(std::uint32_t width, std::uint32_t height)
 		return false;
 	}
 
-	hr = m_Device->CreateRenderTargetView(back.Get(), nullptr, m_Rtv.GetAddressOf());
+	m_BackBufferTex = back;
+
+	m_Rtv.Reset();
+
+	hr = m_Device->CreateRenderTargetView(m_BackBufferTex.Get(), nullptr, m_Rtv.GetAddressOf());
 	if (FAILED(hr))
 	{
 		return false;
 	}
 
-	D3D11_TEXTURE2D_DESC td{};
-	td.Width = width;
-	td.Height = height;
-	td.MipLevels = 1;
-	td.ArraySize = 1;
-	td.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	td.SampleDesc.Count = 1;
-	td.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	UINT quality = 0;
+	hr = m_Device->CheckMultisampleQualityLevels(DXGI_FORMAT_B8G8R8A8_UNORM, m_MsaaCount, &quality);
+	m_MsaaActive = SUCCEEDED(hr) && (quality > 0) && (m_MsaaCount > 1);
 
-	hr = m_Device->CreateTexture2D(&td, nullptr, m_DsTex.GetAddressOf());
+	if (m_MsaaActive)
+	{
+		m_MsaaQuality = quality - 1;
+
+		D3D11_TEXTURE2D_DESC td{};
+		td.Width = width;
+		td.Height = height;
+		td.MipLevels = 1;
+		td.ArraySize = 1;
+		td.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+		td.SampleDesc.Count = m_MsaaCount;
+		td.SampleDesc.Quality = m_MsaaQuality;
+		td.Usage = D3D11_USAGE_DEFAULT;
+		td.BindFlags = D3D11_BIND_RENDER_TARGET;
+
+		m_ColorMsaaTex.Reset();
+		hr = m_Device->CreateTexture2D(&td, nullptr, m_ColorMsaaTex.GetAddressOf());
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		m_RtvMsaa.Reset();
+		hr = m_Device->CreateRenderTargetView(m_ColorMsaaTex.Get(), nullptr, m_RtvMsaa.GetAddressOf());
+		if (FAILED(hr))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		m_MsaaCount = 1;
+		m_MsaaQuality = 0;
+		m_ColorMsaaTex.Reset();
+		m_RtvMsaa.Reset();
+	}
+
+	m_DsTex.Reset();
+	m_Dsv.Reset();
+
+	D3D11_TEXTURE2D_DESC ds{};
+	ds.Width = width;
+	ds.Height = height;
+	ds.MipLevels = 1;
+	ds.ArraySize = 1;
+	ds.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	ds.SampleDesc.Count = m_MsaaActive ? m_MsaaCount : 1;
+	ds.SampleDesc.Quality = m_MsaaActive ? m_MsaaQuality : 0;
+	ds.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+
+	hr = m_Device->CreateTexture2D(&ds, nullptr, m_DsTex.GetAddressOf());
 	if (FAILED(hr))
 	{
 		return false;
@@ -353,6 +396,25 @@ bool DxRenderer::CreateRenderTargets(std::uint32_t width, std::uint32_t height)
 	if (FAILED(hr))
 	{
 		return false;
+	}
+
+	if (m_D2DContext)
+	{
+		ComPtr<IDXGISurface> surface;
+		hr = m_SwapChain->GetBuffer(0, IID_PPV_ARGS(&surface));
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		D2D1_BITMAP_PROPERTIES1 bp = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+		hr = m_D2DContext->CreateBitmapFromDxgiSurface(surface.Get(), &bp, m_D2DTargetBitmap.GetAddressOf());
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		m_D2DContext->SetTarget(m_D2DTargetBitmap.Get());
 	}
 
 	return true;
@@ -420,12 +482,43 @@ bool DxRenderer::CreateConstantBuffers()
 	return true;
 }
 
+void DxRenderer::ResolveMsaa() noexcept
+{
+	if (m_MsaaActive && m_ColorMsaaTex && m_BackBufferTex && !m_ResolvedFrame)
+	{
+		ID3D11RenderTargetView* nullRtv = nullptr;
+		m_Context->OMSetRenderTargets(1, &nullRtv, nullptr);
+		m_Context->ResolveSubresource(m_BackBufferTex.Get(), 0, m_ColorMsaaTex.Get(), 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+		m_ResolvedFrame = true;
+	}
+}
+
 void DxRenderer::ReleaseSizeDependentResources() noexcept
 {
-	m_Rtv.Reset();
-	m_DsTex.Reset();
-	m_Dsv.Reset();
+	if (m_Context)
+	{
+		ID3D11RenderTargetView* nullRtv = nullptr;
+		m_Context->OMSetRenderTargets(1, &nullRtv, nullptr);
+
+		m_Context->ClearState();
+		m_Context->Flush();
+	}
+
+	if (m_D2DContext)
+	{
+		m_D2DContext->SetTarget(nullptr);
+		m_D2DContext->Flush();
+	}
+
 	m_D2DTargetBitmap.Reset();
+
+	m_Rtv.Reset();
+	m_Dsv.Reset();
+	m_DsTex.Reset();
+
+	m_RtvMsaa.Reset();
+	m_ColorMsaaTex.Reset();
+	m_BackBufferTex.Reset();
 }
 
 bool DxRenderer::CreateTextResources()
@@ -510,6 +603,9 @@ void DxRenderer::BeginText() noexcept
 		return;
 	}
 
+	ResolveMsaa();
+
+	m_D2DContext->SetTarget(m_D2DTargetBitmap.Get());
 	m_D2DContext->BeginDraw();
 	m_D2DContext->SetTransform(D2D1::Matrix3x2F::Identity());
 }
@@ -550,7 +646,7 @@ void DxRenderer::EndText() noexcept
 		return;
 	}
 
-	m_D2DContext->EndDraw();
+	HRESULT hr = m_D2DContext->EndDraw();
 }
 
 void DxRenderer::UploadStrikeZoneVertices(const std::vector<Vertex>& vertices)

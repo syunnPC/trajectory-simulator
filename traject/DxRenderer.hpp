@@ -57,6 +57,8 @@ public:
 	std::uint32_t GetWidth() const noexcept;
 	std::uint32_t GetHeight() const noexcept;
 
+	void SetMSAACount(int msaa);
+
 private:
 	bool CreateDeviceAndSwap(HWND hwnd, std::uint32_t width, std::uint32_t height);
 	bool CreateRenderTargets(std::uint32_t width, std::uint32_t height);
@@ -69,6 +71,8 @@ private:
 	bool CreateTextTargetBitmap();
 
 	bool CreateFixedStates();
+
+	void ResolveMsaa() noexcept;
 
 	Microsoft::WRL::ComPtr<ID3D11Device> m_Device;
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_Context;
@@ -102,4 +106,14 @@ private:
 
 	std::uint32_t m_Width;
 	std::uint32_t m_Height;
+
+	UINT m_MsaaCount{ 8 }; //Ç¢Ç¬Ç©ÉtÉ@ÉCÉãÇ©ÇÁê›íËÇ≈Ç´ÇÈÇÊÇ§Ç…Ç∑ÇÈ
+	UINT m_MsaaQuality{ 0 };
+	bool m_MsaaActive{ false };
+
+	bool m_ResolvedFrame{ false };
+
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> m_BackBufferTex;
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> m_ColorMsaaTex;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_RtvMsaa;
 };

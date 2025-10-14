@@ -442,6 +442,8 @@ namespace PitchSim::Config
 		constexpr auto MASS_KEY = "MASS";
 		constexpr auto ZONE_HEIGHT_KEY = "ZONEHEIGHT";
 		constexpr auto ZONE_SIZE_HEIGHT_KEY = "ZONESIZEHEIGHT";
+		constexpr auto MSAA_COUNT_KEY = "MSAA";
+		constexpr auto QUALITY_KEY = "QUALITY";
 
 		if (set[PRESSURE_SETTING_KEY] != "")
 		{
@@ -572,6 +574,30 @@ namespace PitchSim::Config
 			try
 			{
 				s.ZoneSizeHeight_m = std::stod(set[ZONE_SIZE_HEIGHT_KEY]);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		if (set[MSAA_COUNT_KEY] != "")
+		{
+			try
+			{
+				s.MsaaCount = std::stoi(set[MSAA_COUNT_KEY]);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		if (set[QUALITY_KEY] != "")
+		{
+			try
+			{
+				s.MsaaCount = std::stoi(set[QUALITY_KEY]);
 			}
 			catch (...)
 			{

@@ -75,5 +75,6 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="pitches.txt" />
+    <Text Include="envconfig.txt" />
   </ItemGroup>
 </Project>

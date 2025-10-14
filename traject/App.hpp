@@ -81,6 +81,8 @@ private:
 
 	int m_FilterIndex{ -1 };
 
+	int m_Subdivide{ 16 }; //ファイルからの設定を今度実装
+
 	float m_DrawSpeed_mps{ 4.0f }; //いらない
 	float m_DrawLength_m{ 0.0f }; //いらない
 	std::size_t m_VisibleCount{ 0 };

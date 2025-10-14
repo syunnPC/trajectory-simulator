@@ -125,6 +125,43 @@ namespace
 		MultiByteToWideChar(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()), out.data(), len);
 		return out;
 	}
+
+	inline XMFLOAT3 ToF3(const Float3& p) noexcept
+	{
+		return XMFLOAT3{ p.X, p.Y, p.Z };
+	}
+
+	inline Float3 LerpF3(const Float3& a, const Float3& b, float t) noexcept
+	{
+		return Float3{ a.X + (b.X - a.X) * t, a.Y + (b.Y - a.Y) * t, a.Z + (b.Z - a.Z) * t };
+	}
+
+	inline Float3 CatmullRom(const Float3& p0, const Float3& p1, const Float3& p2, const Float3& p3, float t) noexcept
+	{
+		const float t2 = t * t;
+		const float t3 = t2 * t;
+
+		float cx = 0.5f * (2.0f * p1.X + (-p0.X + p2.X) * t + (2.0f * p0.X - 5.0f * p1.X + 4.0f * p2.X - p3.X) * t2 + (-p0.X + 3.0f * p1.X - 3.0f * p2.X + p3.X) * t3);
+		float cy = 0.5f * (2.0f * p1.Y + (-p0.Y + p2.Y) * t + (2.0f * p0.Y - 5.0f * p1.Y + 4.0f * p2.Y - p3.Y) * t2 + (-p0.Y + 3.0f * p1.Y - 3.0f * p2.Y + p3.Y) * t3);
+		float cz = 0.5f * (2.0f * p1.Z + (-p0.Z + p2.Z) * t + (2.0f * p0.Z - 5.0f * p1.Z + 4.0f * p2.Z - p3.Z) * t2 + (-p0.Z + 3.0f * p1.Z - 3.0f * p2.Z + p3.Z) * t3);
+
+		return Float3{ cx, cy, cz };
+	}
+
+	inline const Float3& ClampIdx(const std::vector<Float3>& v, int i) noexcept
+	{
+		if (i < 0)
+		{
+			return v.front();
+		}
+
+		if (i >= static_cast<int>(v.size()))
+		{
+			return v.back();
+		}
+
+		return v[static_cast<std::size_t>(i)];
+	}
 }
 
 void App::ReloadConfigAndBuild()
@@ -146,7 +183,6 @@ void App::ReloadConfigAndBuild()
 	m_TimeElapsed_s.clear();
 	m_TrajDuration_s.clear();
 
-	//m_CircleVerts.clear();
 	m_CircleVertsList.clear();
 
 	for (std::size_t i = 0; i < m_Pitches.size(); ++i)
@@ -207,7 +243,6 @@ void App::ReloadConfigAndBuild()
 		}
 
 		m_TrajectoryVertsList.emplace_back(std::move(verts));
-		m_ArcLenList_m.emplace_back(std::move(arc));
 
 		const float plateX = PLATE_DISTANCE_M;
 		const auto& vlist = m_TrajectoryVertsList.back();
@@ -289,7 +324,6 @@ void App::ReloadConfigAndBuild()
 
 	m_DrawLength_m = 0.0f;
 	m_Animate = true;
-	//m_Renderer.UploadCircleVertices(m_CircleVerts);
 }
 
 bool App::Initialize(HINSTANCE hInstance)
@@ -320,16 +354,6 @@ bool App::Initialize(HINSTANCE hInstance)
 
 	ShowWindow(m_HWND, SW_SHOW);
 
-	if (!m_Renderer.Initialize(m_HWND, w, h))
-	{
-		return false;
-	}
-
-	m_Camera.SetViewportSize(w, h);
-	m_Camera.SetProjection(60.0f, 0.01f, 500.0f);
-	m_Camera.SetCenter(XMFLOAT3(9.22f, 0.0f, 0.0f));
-	m_Camera.SetRadiusLimits(3.0f, 60.0f);
-
 	m_Params.ReleaseHeight_cm = 180.0;
 	m_Params.InitialSpeed_mps = 0;
 	m_Params.Elevation_deg = 0;
@@ -350,7 +374,7 @@ bool App::Initialize(HINSTANCE hInstance)
 	m_StrikeZoneSizeHeight_m = 0.72;
 
 	PitchSim::Config::EnvironmentSettings es{};
-	
+
 	if (PitchSim::Config::LoadEnvConfigFile("envconfig.txt", es))
 	{
 		if (es.Pressure_hPa.has_value())
@@ -397,7 +421,27 @@ bool App::Initialize(HINSTANCE hInstance)
 		{
 			m_Params.Mass_kg = es.Mass_kg.value();
 		}
+		
+		if (es.MsaaCount.has_value())
+		{
+			m_Renderer.SetMSAACount(es.MsaaCount.value());
+		}
+
+		if (es.GraphicQuality.has_value())
+		{
+			m_Subdivide = es.GraphicQuality.value();
+		}
 	}
+
+	if (!m_Renderer.Initialize(m_HWND, w, h))
+	{
+		return false;
+	}
+
+	m_Camera.SetViewportSize(w, h);
+	m_Camera.SetProjection(60.0f, 0.01f, 500.0f);
+	m_Camera.SetCenter(XMFLOAT3(9.22f, 0.0f, 0.0f));
+	m_Camera.SetRadiusLimits(3.0f, 60.0f);
 	
 	BuildGroundGrid();
 	try
@@ -422,10 +466,36 @@ void App::Recompute()
 	std::vector<Float3> pts;
 	m_Simulator.Simulate(m_Params, pts);
 
-	m_Vertices.clear();
-	m_Vertices.reserve(pts.size());
+	std::vector<Float3> drawPts;
+	if (pts.size() < 4 || m_Subdivide <= 1)
+	{
+		drawPts = pts;
+	}
+	else
+	{
+		drawPts.reserve(pts.size() * static_cast<std::size_t>(m_Subdivide));
+		const int n = static_cast<int>(pts.size());
+		for (int i = 0; i < n - 1; ++i)
+		{
+			const Float3& p0 = ClampIdx(pts, i - 1);
+			const Float3& p1 = ClampIdx(pts, i);
+			const Float3& p2 = ClampIdx(pts, i + 1);
+			const Float3& p3 = ClampIdx(pts, i + 2);
 
-	const std::size_t n = pts.size();
+			for (int s = 0; s < m_Subdivide; ++s)
+			{
+				float t = static_cast<float>(s) / static_cast<float>(m_Subdivide);
+				drawPts.emplace_back(CatmullRom(p0, p1, p2, p3, t));
+			}
+		}
+
+		drawPts.emplace_back(pts.back());
+	}
+
+	m_Vertices.clear();
+	m_Vertices.reserve(drawPts.size());
+
+	const std::size_t n = drawPts.size();
 	for (std::size_t i = 0; i < n; ++i)
 	{
 		float t = (n > 1) ? static_cast<float>(i) / static_cast<float>(n - 1) : 0.0f;
@@ -437,7 +507,7 @@ void App::Recompute()
 			1.0f
 		};
 
-		m_Vertices.emplace_back(DxRenderer::Vertex{ XMFLOAT3{pts[i].X, pts[i].Y, pts[i].Z}, col });
+		m_Vertices.emplace_back(DxRenderer::Vertex{ XMFLOAT3{drawPts[i].X, drawPts[i].Y, drawPts[i].Z}, col });
 	}
 
 	m_Renderer.UploadLineVertices(m_Vertices);
@@ -567,11 +637,6 @@ int App::Run()
 
 				for (std::size_t i = 0; i < m_TrajectoryVertsList.size(); ++i)
 				{
-					if (m_FilterSingle && static_cast<int>(i) != m_FilterIndex)
-					{
-						//continue;
-					}
-
 					if (m_FilterSingle && !std::ranges::contains(m_FilterIndexList, i))
 					{
 						continue;

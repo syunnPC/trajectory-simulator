@@ -1,16 +1,25 @@
 #設定項目
 #PRESSURE=気圧（hPa）
-#HEIGHT=高さ（次のキーがTRUEの場合のみ有効）
+#HEIGHT=高さ（m、次のキーがTRUEの場合のみ有効）
 #USEHEIGHT=高さから気圧を自動計算する場合TRUE、そうしない場合FALSE（規定はFALSE）
 #SPEED=スピードスケール、実際の速度の1/nでレンダリングするのでnを指定
 #TEMP=気温（℃）
-#DT=シュミレーション時間幅
+#DT=シュミレーション時間幅 小さすぎるとバグるし計算時間とメモリが爆発的に増える 動作確認できたのは最小で0.0000003 @Ryzen 7 9700Xで最大2.3GBほどメモリ消費
 #HUMID=湿度
 #RADIUS=ボール半径（mm）
 #MASS=ボール質量（kg）
-#ZONEHEIGHT=ゾーン下限までの高さ（m）
-#ZONESIZEHEIGHT=ゾーン自体の高さ（m）
+#MSAA=MSAA 設定値（1,2,4,8,16） 16は一部GPUでのみ動作、対応していないGPUだと自動で無効化
+#QUALITY=グラフィック品質 推奨 4~8
 #これらの項目はすべて設定しなくてもOK
 
 SPEED=1
-DT=0.000001
+DT=0.0000003
+RADIUS=36.5
+MASS=0.142
+HUMID=50
+QUALITY=8
+MSAA=8
+
+#例:ピンポン玉の場合
+#RADIUS=20
+#MASS=0.0027
