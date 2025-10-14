@@ -177,21 +177,28 @@ void App::ReloadConfigAndBuild()
 		throw std::exception();
 	}
 
+	std::size_t N = m_Pitches.size();
+
 	m_TrajectoryVertsList.clear();
-	m_ArcLenList_m.clear();
 	m_VisibleCounts.clear();
 	m_TimeElapsed_s.clear();
 	m_TrajDuration_s.clear();
-
 	m_CircleVertsList.clear();
 
+	m_TrajectoryVertsList.resize(N);
+	m_VisibleCounts.resize(N);
+	m_TimeElapsed_s.resize(N);
+	m_TrajDuration_s.resize(N);
+	m_CircleVertsList.resize(N);
+
 	//ÉãÅ[Évï¿óÒâªÇóLå¯Ç…
+	auto& x = *this;
 #ifndef _DEBUG
-#pragma	omp parallel for
+#pragma	omp parallel for schedule(static) default(none) shared(x)
 #endif
-	for (int i = 0; i < m_Pitches.size(); ++i)
+	for (int i = 0; i < static_cast<int>(N); ++i)
 	{
-		const PitchEntry& pe = m_Pitches[i];
+		const PitchEntry& pe = x.m_Pitches[i];
 
 		SimParams p = m_Params;
 		p.InitialSpeed_mps = KmphToMps(pe.Speed_kmh);
@@ -230,35 +237,16 @@ void App::ReloadConfigAndBuild()
 			verts.emplace_back(DxRenderer::Vertex{ XMFLOAT3{pts[k].X, pts[k].Y, pts[k].Z }, col });
 		}
 
-		std::vector<float> arc;
-		arc.reserve(verts.size());
-		arc.emplace_back(0.0f);
-		for (std::size_t k = 1; k < verts.size(); ++k)
-		{
-			const auto& a = verts[k - 1].Pos;
-			const auto& b = verts[k].Pos;
-
-			float dx = b.x - a.x;
-			float dy = b.y - a.y;
-			float dz = b.z - a.z;
-
-			float seg = std::sqrt(dx * dx + dy * dy + dz * dz);
-			arc.emplace_back(arc.back() + seg);
-		}
-
-		m_TrajectoryVertsList.emplace_back(std::move(verts));
-
 		const float plateX = PLATE_DISTANCE_M;
-		const auto& vlist = m_TrajectoryVertsList.back();
-		const std::size_t vn = vlist.size();
+		const std::size_t vn = verts.size();
 		std::optional<XMFLOAT3> hit;
 
 		if (vn >= 2)
 		{
 			for (std::size_t k = 1; k < vn; ++k)
 			{
-				const auto& a = vlist[k - 1].Pos;
-				const auto& b = vlist[k].Pos;
+				const auto& a = verts[k - 1].Pos;
+				const auto& b = verts[k].Pos;
 
 				if (a.x <= plateX && b.x >= plateX)
 				{
@@ -276,13 +264,13 @@ void App::ReloadConfigAndBuild()
 			}
 		}
 
+		std::vector<DxRenderer::Vertex> circle;
+
 		if (hit.has_value())
 		{
 			const float r = static_cast<float>(m_Params.Radius_mm * 1e-3);
 			const int segs = 48;
 			const XMFLOAT4 fillCol{ base.x, base.y, base.z, 0.35f };
-
-			std::vector<DxRenderer::Vertex> circle;
 			circle.reserve(segs * 3);
 
 			auto addTri = [&](const XMFLOAT3& p0, const XMFLOAT3& p1, const XMFLOAT3& p2)
@@ -307,23 +295,16 @@ void App::ReloadConfigAndBuild()
 				XMFLOAT3 p2{ cx, cy + r * std::cos(a1), cz + r * std::sin(a1) };
 				addTri(p0, p1, p2);
 			}
-
-			m_CircleVertsList.emplace_back(std::move(circle));
 		}
 
-		const std::size_t ns = vn;
+		const std::size_t ns = verts.size();
+		double trajSec = (ns >= 2) ? (static_cast<double>(ns - 1) * p.Dt_s) : 0.0;
 
-		double trajSec = 0.0;
-		if (ns >= 2)
-		{
-			trajSec = static_cast<double>(ns - 1) * m_Params.Dt_s;
-		}
-
-		m_TrajDuration_s.emplace_back(trajSec);
-
-		m_TimeElapsed_s.emplace_back(0.0);
-
-		m_VisibleCounts.emplace_back(ns > 0 ? 1u : 0u);
+		x.m_TrajectoryVertsList[i] = std::move(verts);
+		x.m_CircleVertsList[i] = std::move(circle);
+		x.m_TimeElapsed_s[i] = 0.0;
+		x.m_VisibleCounts[i] = (ns > 0 ? 1u : 0u);
+		x.m_TrajDuration_s[i] = trajSec;
 	}
 
 	m_DrawLength_m = 0.0f;
@@ -896,8 +877,8 @@ void App::BuildStrikeZone()
 
 	const float x = 18.44f;
 	const float halfW = 0.216f;
-	const float y0 = m_StrikeZoneHeight_m;
-	const float y1 = y0 + m_StrikeZoneSizeHeight_m;
+	const float y0 = static_cast<const float>(m_StrikeZoneHeight_m);
+	const float y1 = y0 + static_cast<const float>(m_StrikeZoneSizeHeight_m);
 
 	const float zL = -halfW;
 	const float zR = +halfW;
@@ -921,8 +902,8 @@ void App::BuildStrikeZone()
 	addLine(XMFLOAT3{ x, y0, zV1 }, XMFLOAT3{ x, y1, zV1 }, meshCol);
 	addLine(XMFLOAT3{ x, y0, zV2 }, XMFLOAT3{ x, y1, zV2 }, meshCol);
 
-	const float yH1 = y0 + m_StrikeZoneSizeHeight_m / 3.0f;
-	const float yH2 = y0 + 2.0f * m_StrikeZoneSizeHeight_m / 3.0f;
+	const float yH1 = y0 + static_cast<const float>(m_StrikeZoneSizeHeight_m) / 3.0f;
+	const float yH2 = y0 + 2.0f * static_cast<const float>(m_StrikeZoneSizeHeight_m) / 3.0f;
 	addLine(XMFLOAT3{ x, yH1, zL }, XMFLOAT3{ x, yH1, zR }, meshCol);
 	addLine(XMFLOAT3{ x, yH2, zL }, XMFLOAT3{ x, yH2, zR }, meshCol);
 

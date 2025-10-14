@@ -114,7 +114,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
@@ -143,6 +143,7 @@
     <ClInclude Include="Physics.hpp" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="PitchConfig.hpp" />
     <ClInclude Include="TrajectorySimulator.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -158,7 +159,6 @@
     <ClCompile Include="DxRenderer.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="PitchConfig.cpp" />
-    <ClCompile Include="PitchConfig.hpp" />
     <ClCompile Include="TrajectorySimulator.cpp" />
   </ItemGroup>
   <ItemGroup>

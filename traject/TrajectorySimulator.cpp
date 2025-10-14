@@ -41,6 +41,8 @@ namespace PitchSim
 
 	DVec3 TrajectorySimulator::ComputeAcceleration(const DVec3& position, const DVec3& velocity, double radius_m, double mass_kg, double rho, double spin_rpm, const DVec3& omega, double g) noexcept
 	{
+		static_cast<void>(position);
+
 		double speed = Norm(velocity);
 		DVec3 a{ 0.0, -g, 0.0 };
 

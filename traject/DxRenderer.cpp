@@ -647,6 +647,11 @@ void DxRenderer::EndText() noexcept
 	}
 
 	HRESULT hr = m_D2DContext->EndDraw();
+	if (hr == D2DERR_RECREATE_TARGET)
+	{
+		//TODO:Äì¬‚ª•K—v
+		return;
+	}
 }
 
 void DxRenderer::UploadStrikeZoneVertices(const std::vector<Vertex>& vertices)
