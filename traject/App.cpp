@@ -185,7 +185,11 @@ void App::ReloadConfigAndBuild()
 
 	m_CircleVertsList.clear();
 
-	for (std::size_t i = 0; i < m_Pitches.size(); ++i)
+	//ƒ‹[ƒv•À—ñ‰»‚ð—LŒø‚É
+#ifndef _DEBUG
+#pragma	omp parallel for
+#endif
+	for (int i = 0; i < m_Pitches.size(); ++i)
 	{
 		const PitchEntry& pe = m_Pitches[i];
 
@@ -212,7 +216,7 @@ void App::ReloadConfigAndBuild()
 		std::vector<Float3> pts;
 		m_Simulator.Simulate(p, pts);
 
-		XMFLOAT4 base = Palette(i);
+		XMFLOAT4 base = Palette(static_cast<std::size_t>(i));
 		XMFLOAT4 white{ 1.0f, 1.0f, 1.0f, 1.0f };
 
 		std::vector<DxRenderer::Vertex> verts;
