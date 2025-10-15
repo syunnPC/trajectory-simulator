@@ -380,6 +380,8 @@ void App::RecalcTrajectForIndex(std::size_t i)
 	m_TimeElapsed_s[i] = 0.0;
 	m_VisibleCounts[i] = (ns > 0 ? 1u : 0u);
 	m_TrajDuration_s[i] = trajSec;
+
+	m_PackedDirty = true;
 }
 
 void App::ReloadConfigAndBuild()
@@ -535,6 +537,7 @@ void App::ReloadConfigAndBuild()
 		x.m_TrajDuration_s[i] = trajSec;
 	}
 
+	RebuildPackedVBs();
 	m_Animate = true;
 }
 
@@ -795,6 +798,11 @@ int App::Run()
 			m_LastTick = now;
 			UpdateAnimation(dt_s);
 
+			if (m_PackedDirty)
+			{
+				RebuildPackedVBs();
+			}
+
 			m_Renderer.BeginFrame();
 
 			DxRenderer::CbScene cb{ XMMatrixTranspose(XMMatrixMultiply(m_Camera.GetViewMatrix(), m_Camera.GetProjMatrix())) };
@@ -813,30 +821,24 @@ int App::Run()
 				{
 					continue;
 				}
+				m_Renderer.DrawPackedTrajectory(i, m_VisibleCounts[i]);
+			}
 
-				m_Renderer.UploadLineVertices(m_TrajectoryVertsList[i]);
-				m_Renderer.DrawLineStrip(m_VisibleCounts[i]);
+			if (m_ShowBalls)
+			{
+				for (std::size_t i = 0; i < m_TrajectoryVertsList.size(); ++i)
+				{
+					if (m_FilterSingle && !std::ranges::contains(m_FilterIndexList, i))
+					{
+						continue;
+					}
 
-				const auto& verts = m_TrajectoryVertsList[i];
-				bool finished = false;
-
-				if (!m_Animate)
-				{
-					finished = true;
-				}
-				else if (i < m_VisibleCounts.size())
-				{
-					finished = (m_VisibleCounts[i] >= verts.size());
-				}
-				else
-				{
-					finished = true;
-				}
-
-				if (m_ShowBalls && finished && i < m_CircleVertsList.size() && !m_CircleVertsList[i].empty())
-				{
-					m_Renderer.UploadCircleVertices(m_CircleVertsList[i]);
-					m_Renderer.DrawCircleTriangles(m_CircleVertsList[i].size());
+					const auto& verts = m_TrajectoryVertsList[i];
+					const bool finished = (!m_Animate) || (i < m_VisibleCounts.size() && m_VisibleCounts[i] >= verts.size());
+					if (finished && i < m_CircleVertsList.size() && !m_CircleVertsList[i].empty())
+					{
+						m_Renderer.DrawPackedSpot(i);
+					}
 				}
 			}
 
@@ -1142,4 +1144,11 @@ double App::GenerateRandom(double min, double max)
 	thread_local std::mt19937_64 gen{ static_cast<uint64_t>(std::hash<std::thread::id>{}(std::this_thread::get_id())) ^ static_cast<uint64_t>(__rdtsc())};
 	std::uniform_real_distribution<double> dist{ min, max };
 	return dist(gen);
+}
+
+void App::RebuildPackedVBs()
+{
+	m_Renderer.BuildPackedTrajectories(m_TrajectoryVertsList);
+	m_Renderer.BuildPackedSpots(m_CircleVertsList);
+	m_PackedDirty = false;
 }

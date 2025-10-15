@@ -133,7 +133,7 @@ void DxRenderer::BeginFrame() noexcept
 void DxRenderer::EndFrame() noexcept
 {
 	ResolveMsaa();
-	m_SwapChain->Present(1, 0);
+	m_SwapChain->Present(0, 0);
 }
 
 void DxRenderer::UpdateSceneCB(const CbScene& cb)
@@ -810,6 +810,162 @@ void DxRenderer::DrawCircleTriangles(std::size_t vertexCount) noexcept
 	m_Context->VSSetConstantBuffers(0, 1, m_CbScene.GetAddressOf());
 
 	m_Context->Draw(static_cast<UINT>(vertexCount), 0);
+
+	m_Context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
+	m_Context->RSSetState(nullptr);
+}
+
+namespace
+{
+	ComPtr<ID3D11Buffer> CreateImmutableVB(ID3D11Device* dev, const std::vector<DxRenderer::Vertex>& v)
+	{
+		Microsoft::WRL::ComPtr<ID3D11Buffer> buf;
+		if (v.empty())
+		{
+			return buf;
+		}
+
+		D3D11_BUFFER_DESC bd{};
+		bd.ByteWidth = static_cast<UINT>(sizeof(DxRenderer::Vertex) * v.size());
+		bd.Usage = D3D11_USAGE_IMMUTABLE;
+		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+		D3D11_SUBRESOURCE_DATA init{};
+		init.pSysMem = v.data();
+
+		if (SUCCEEDED(dev->CreateBuffer(&bd, &init, buf.GetAddressOf())))
+		{
+			return buf;
+		}
+
+		return {};
+	}
+}
+
+void DxRenderer::BuildPackedTrajectories(const std::vector<std::vector<Vertex>>& lists)
+{
+	m_VbTrajPacked.Reset();
+	m_TrajStarts.clear();
+	m_TrajCounts.clear();
+
+	std::vector<Vertex> packed;
+	packed.reserve(1024);
+	std::size_t total = 0;
+
+	m_TrajStarts.reserve(lists.size());
+	m_TrajCounts.reserve(lists.size());
+
+	for (const auto& v : lists)
+	{
+		m_TrajStarts.emplace_back(static_cast<UINT>(total));
+		m_TrajCounts.emplace_back(static_cast<UINT>(v.size()));
+		total += v.size();
+		packed.insert(packed.end(), v.begin(), v.end());
+	}
+
+	if (!packed.empty())
+	{
+		m_VbTrajPacked = CreateImmutableVB(m_Device.Get(), packed);
+	}
+}
+
+void DxRenderer::DrawPackedTrajectory(std::size_t index, std::size_t visibleCount) noexcept
+{
+	if (!m_VbTrajPacked)
+	{
+		return;
+	}
+
+	if (index >= m_TrajStarts.size())
+	{
+		return;
+	}
+
+	const UINT start = m_TrajStarts[index];
+	const UINT full = m_TrajCounts[index];
+	const UINT count = static_cast<UINT>(std::min<std::size_t>(visibleCount, full));
+	if (count == 0)
+	{
+		return;
+	}
+
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	ID3D11Buffer* vb = m_VbTrajPacked.Get();
+
+	m_Context->IASetInputLayout(m_InputLayout.Get());
+	m_Context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
+	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
+
+	m_Context->VSSetShader(m_Vs.Get(), nullptr, 0);
+	m_Context->PSSetShader(m_Ps.Get(), nullptr, 0);
+	m_Context->VSSetConstantBuffers(0, 1, m_CbScene.GetAddressOf());
+
+	m_Context->Draw(count, start);
+}
+
+void DxRenderer::BuildPackedSpots(const std::vector<std::vector<Vertex>>& lists)
+{
+	m_VbSpotPacked.Reset();
+	m_SpotStarts.clear();
+	m_SpotCounts.clear();
+
+	std::vector<Vertex> packed;
+	packed.reserve(1024);
+	std::size_t total = 0;
+
+	m_SpotStarts.reserve(lists.size());
+	m_SpotCounts.reserve(lists.size());
+
+	for (const auto& v : lists)
+	{
+		m_SpotStarts.emplace_back(static_cast<UINT>(total));
+		m_SpotCounts.emplace_back(static_cast<UINT>(v.size()));
+		total += v.size();
+		packed.insert(packed.end(), v.begin(), v.end());
+	}
+
+	if (!packed.empty())
+	{
+		m_VbSpotPacked = CreateImmutableVB(m_Device.Get(), packed);
+	}
+}
+
+void DxRenderer::DrawPackedSpot(std::size_t index) noexcept
+{
+	if (!m_VbSpotPacked)
+	{
+		return;
+	}
+
+	if (index >= m_SpotStarts.size())
+	{
+		return;
+	}
+
+	const UINT start = m_SpotStarts[index];
+	const UINT count = m_SpotCounts[index];
+	if (count == 0)
+	{
+		return;
+	}
+
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	ID3D11Buffer* vb = m_VbSpotPacked.Get();
+
+	m_Context->OMSetBlendState(m_BlendAlpha.Get(), nullptr, 0xFFFFFFFF);
+	m_Context->RSSetState(m_RsNoCull.Get());
+
+	m_Context->IASetInputLayout(m_InputLayout.Get());
+	m_Context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
+	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	m_Context->VSSetShader(m_Vs.Get(), nullptr, 0);
+	m_Context->PSSetShader(m_Ps.Get(), nullptr, 0);
+	m_Context->VSSetConstantBuffers(0, 1, m_CbScene.GetAddressOf());
+
+	m_Context->Draw(count, start);
 
 	m_Context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
 	m_Context->RSSetState(nullptr);

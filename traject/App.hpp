@@ -46,6 +46,8 @@ private:
 	void RecalcTrajectForIndex(std::size_t i);
 	bool IsPitchRequireRecalc(std::size_t i);
 
+	void RebuildPackedVBs();
+
 	HWND m_HWND{ nullptr };
 	DxRenderer m_Renderer;
 	OrbitCamera m_Camera;
@@ -53,17 +55,11 @@ private:
 
 	std::vector<DxRenderer::Vertex> m_Vertices;
 	std::vector<DxRenderer::Vertex> m_GroundVerts;
-
-	std::vector<std::vector<DxRenderer::Vertex>> m_TrajectoryVertsList;
-	std::vector<std::vector<float>> m_ArcLenList_m; //いらない
 	std::vector<std::size_t> m_VisibleCounts;
 
 	std::vector<PitchSim::Config::PitchEntry> m_Pitches;
 
 	std::vector<DxRenderer::Vertex> m_StrikeVerts;
-
-	std::vector<DxRenderer::Vertex> m_CircleVerts; //いらない
-	std::vector<DxRenderer::Vertex> m_CircleVertsAll; //いらない
 
 	std::vector<std::vector<DxRenderer::Vertex>> m_CircleVertsList;
 
@@ -88,20 +84,20 @@ private:
 
 	int m_Subdivide{ 16 }; //ファイルからの設定を今度実装
 
-	float m_DrawSpeed_mps{ 4.0f }; //いらない
-	float m_DrawLength_m{ 0.0f }; //いらない
-	std::size_t m_VisibleCount{ 0 };
 	bool m_Animate{ true };
 	std::chrono::steady_clock::time_point m_LastTick;
 
 	std::vector<double> m_TimeElapsed_s;
 	std::vector<double> m_TrajDuration_s;
 
+	std::vector<std::vector<DxRenderer::Vertex>> m_TrajectoryVertsList;
+
 	/*
 		シュミレーション時間幅を変更したい場合
 		m_TimeScaleは実際の速度の何倍かを示すので
 		デフォルト1.0/3.0→実際の速度の1/3としてレンダ
 	*/
-
 	double m_TimeScale{ 1.0 / 3.0 };
+
+	bool m_PackedDirty{ false };
 };

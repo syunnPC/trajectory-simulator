@@ -50,6 +50,12 @@ public:
 	void UploadCircleVertices(const std::vector<Vertex>& vertices);
 	void DrawCircleTriangles(std::size_t vertexCount) noexcept;
 
+	void BuildPackedTrajectories(const std::vector<std::vector<Vertex>>& lists);
+	void DrawPackedTrajectory(std::size_t index, std::size_t visibleCount) noexcept;
+
+	void BuildPackedSpots(const std::vector<std::vector<Vertex>>& lists);
+	void DrawPackedSpot(std::size_t index) noexcept;
+
 	void BeginText() noexcept;
 	void DrawTextLabel(const std::wstring& text, float x_px, float y_px, float size_px, const D2D1_COLOR_F& color) noexcept;
 	void EndText() noexcept;
@@ -107,7 +113,7 @@ private:
 	std::uint32_t m_Width;
 	std::uint32_t m_Height;
 
-	UINT m_MsaaCount{ 8 }; //Ç¢Ç¬Ç©ÉtÉ@ÉCÉãÇ©ÇÁê›íËÇ≈Ç´ÇÈÇÊÇ§Ç…Ç∑ÇÈ
+	UINT m_MsaaCount{ 8 };
 	UINT m_MsaaQuality{ 0 };
 	bool m_MsaaActive{ false };
 
@@ -116,4 +122,12 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11Texture2D> m_BackBufferTex;
 	Microsoft::WRL::ComPtr<ID3D11Texture2D> m_ColorMsaaTex;
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_RtvMsaa;
+
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_VbTrajPacked;
+	std::vector<UINT> m_TrajStarts;
+	std::vector<UINT> m_TrajCounts;
+
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_VbSpotPacked;
+	std::vector<UINT> m_SpotStarts;
+	std::vector<UINT> m_SpotCounts;
 };
