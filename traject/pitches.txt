@@ -3,7 +3,7 @@
 /#のところは球種
 
 #ストレート
-Speed=165,Axis=(0.0,-0.014,0.995),RPM=2250,Release=155,Elevation=-2.0,Azimuth=0
+Speed=165,Axis=(0, 0, 1),RPM=RAND[100:2000],Release=155,Elevation=-2.0,Azimuth=0
 
 #ツーシームファスト
 Speed=163,Axis=(0,-0.110,0.955),RPM=2000,Release=155,Elevation=-2.0,Azimuth=0
@@ -23,5 +23,5 @@ Speed=140,Axis=(0,0,1),RPM=500,Release=155,Elevation=-1.5,Azimuth=0.2
 #ジャイロフォーク
 Speed=140,Axis=(0.880,0,-0.2.00),RPM=1000,Release=155,Elevation=-0.5,Azimuth=0.6
 
-#シンカー
-Speed=145,Axis=(0,-0.820,-0.100),RPM=1850,Release=155,Elevation=0.4,Azimuth=-2.5
+#テスト
+Speed=RAND[100:200],Axis=(RAND[-1:1],RAND[-1:1],RAND[-1:1]),RPM=RAND[0:3000],Elevation=RAND[-1:1],Azimuth=RAND[-1:1]

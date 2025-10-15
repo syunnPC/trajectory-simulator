@@ -5,6 +5,7 @@
 #include <string>
 #include <chrono>
 #include <format>
+#include <random>
 #include <cmath>
 
 #define WIN32_LEAN_AND_MEAN
@@ -32,6 +33,8 @@ public:
 
 	LRESULT HandleMessage(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
 
+	static double GenerateRandom(double min, double max);
+
 private:
 	void Recompute();
 	void BuildGroundGrid();
@@ -40,6 +43,8 @@ private:
 	void RestartAnimationForIndex(std::size_t i) noexcept;
 	void RestartAnimationForAll() noexcept;
 	void BuildStrikeZone();
+	void RecalcTrajectForIndex(std::size_t i);
+	bool IsPitchRequireRecalc(std::size_t i);
 
 	HWND m_HWND{ nullptr };
 	DxRenderer m_Renderer;

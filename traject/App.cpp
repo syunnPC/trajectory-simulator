@@ -1,5 +1,7 @@
 #include "App.hpp"
 
+#include <thread>
+
 #include "PitchConfig.hpp"
 
 using Microsoft::WRL::ComPtr;
@@ -13,6 +15,11 @@ void App::RestartAnimationForIndex(std::size_t i) noexcept
 	if (i >= m_TrajectoryVertsList.size())
 	{
 		return;
+	}
+
+	if (IsPitchRequireRecalc(i))
+	{
+		RecalcTrajectForIndex(i);
 	}
 
 	const std::size_t n = m_TrajectoryVertsList[i].size();
@@ -164,6 +171,217 @@ namespace
 	}
 }
 
+namespace
+{
+	inline bool SetRandomValue(PitchSim::Config::PitchEntry& pe)
+	{
+		if (pe.IsRandomAxisX && pe.XMin.has_value() && pe.XMax.has_value())
+		{
+			pe.Axis.X = App::GenerateRandom(pe.XMin.value(), pe.XMax.value());
+		}
+		else if (pe.IsRandomAxisX)
+		{
+			return false;
+		}
+
+		if (pe.IsRandomAxisY && pe.YMin.has_value() && pe.YMax.has_value())
+		{
+			pe.Axis.Y = App::GenerateRandom(pe.YMin.value(), pe.YMax.value());
+		}
+		else if (pe.IsRandomAxisY)
+		{
+			return false;
+		}
+
+		if (pe.IsRandomAxisZ && pe.ZMin.has_value() && pe.ZMax.has_value())
+		{
+			pe.Axis.Z = App::GenerateRandom(pe.ZMin.value(), pe.ZMax.value());
+		}
+		else if(pe.IsRandomAxisZ)
+		{
+			return false;
+		}
+
+		if (pe.IsRandomAzimuth && pe.AzimuthMin.has_value() && pe.AzimuthMax.has_value())
+		{
+			pe.Azimuth_deg = App::GenerateRandom(pe.AzimuthMin.value(), pe.AzimuthMax.value());
+		}
+		else if(pe.IsRandomAzimuth)
+		{
+			return false;
+		}
+
+		if (pe.IsRandomElevation && pe.ElevationMin.has_value() && pe.ElevationMax.has_value())
+		{
+			pe.Elevation_deg = App::GenerateRandom(pe.ElevationMin.value(), pe.ElevationMax.value());
+		}
+		else if (pe.IsRandomElevation)
+		{
+			return false;
+		}
+
+		if (pe.IsRandomRelease && pe.ReleaseMin.has_value() && pe.ReleaseMax.has_value())
+		{
+			pe.Release_cm = App::GenerateRandom(pe.ReleaseMin.value(), pe.ReleaseMax.value());
+		}
+		else if (pe.IsRandomRelease)
+		{
+			return false;
+		}
+
+		if (pe.IsRandomRpm && pe.RpmMin.has_value() && pe.RpmMax.has_value())
+		{
+			pe.Rpm = App::GenerateRandom(pe.RpmMin.value(), pe.RpmMax.value());
+		}
+		else if(pe.IsRandomRpm)
+		{
+			return false;
+		}
+
+		if (pe.IsRandomSpeed && pe.SpeedMin.has_value() && pe.SpeedMax.has_value())
+		{
+			pe.Speed_kmh = App::GenerateRandom(pe.SpeedMin.value(), pe.SpeedMax.value());
+		}
+		else if (pe.IsRandomSpeed)
+		{
+			return false;
+		}
+	}
+}
+
+bool App::IsPitchRequireRecalc(std::size_t i)
+{
+	if (i >= m_Pitches.size())
+	{
+		return false;
+	}
+
+	const auto& x = m_Pitches[i];
+
+	return (x.IsRandomAxisX || x.IsRandomAxisY || x.IsRandomAxisZ || x.IsRandomAzimuth || x.IsRandomElevation || x.IsRandomRelease || x.IsRandomRpm || x.IsRandomSpeed);
+}
+
+void App::RecalcTrajectForIndex(std::size_t i)
+{
+	using namespace PitchSim;
+	using namespace PitchSim::Config;
+
+	if (i >= m_Pitches.size())
+	{
+		return;
+	}
+
+	PitchEntry& pe = m_Pitches[i];
+
+	SetRandomValue(pe);
+
+	SimParams p = m_Params;
+	p.InitialSpeed_mps = KmphToMps(pe.Speed_kmh);
+	p.SpinAxis = pe.Axis;
+	p.SpinRPM = pe.Rpm;
+
+	if (pe.Release_cm.has_value())
+	{
+		p.ReleaseHeight_cm = pe.Release_cm.value();
+	}
+
+	if (pe.Elevation_deg.has_value())
+	{
+		p.Elevation_deg = pe.Elevation_deg.value();
+	}
+
+	if (pe.Azimuth_deg.has_value())
+	{
+		p.Azimuth_deg = pe.Azimuth_deg.value();
+	}
+
+	std::vector<Float3> pts;
+	m_Simulator.Simulate(p, pts);
+
+	XMFLOAT4 base = Palette(static_cast<std::size_t>(i));
+	XMFLOAT4 white{ 1.0f, 1.0f, 1.0f, 1.0f };
+
+	std::vector<DxRenderer::Vertex> verts;
+	verts.reserve(pts.size());
+	const std::size_t n = pts.size();
+
+	for (std::size_t k = 0; k < n; ++k)
+	{
+		float t = (n > 1) ? static_cast<float>(k) / static_cast<float>(n - 1) : 0.0f;
+		XMFLOAT4 col = Lerp(base, white, t);
+		verts.emplace_back(DxRenderer::Vertex{ XMFLOAT3{pts[k].X, pts[k].Y, pts[k].Z }, col });
+	}
+
+	const float plateX = PLATE_DISTANCE_M;
+	const std::size_t vn = verts.size();
+	std::optional<XMFLOAT3> hit;
+
+	if (vn >= 2)
+	{
+		for (std::size_t k = 1; k < vn; ++k)
+		{
+			const auto& a = verts[k - 1].Pos;
+			const auto& b = verts[k].Pos;
+
+			if (a.x <= plateX && b.x >= plateX)
+			{
+				float t = (std::abs(b.x - a.x) > 1e-6f) ? ((plateX - a.x) / (b.x - a.x)) : 0.0f;
+				t = std::clamp(t, 0.0f, 1.0f);
+				hit = XMFLOAT3
+				{
+					plateX,
+					a.y + (b.y - a.y) * t,
+					a.z + (b.z - a.z) * t
+				};
+
+				break;
+			}
+		}
+	}
+
+	std::vector<DxRenderer::Vertex> circle;
+
+	if (hit.has_value())
+	{
+		const float r = static_cast<float>(m_Params.Radius_mm * 1e-3);
+		const int segs = 48;
+		const XMFLOAT4 fillCol{ base.x, base.y, base.z, 0.35f };
+		circle.reserve(segs * 3);
+
+		auto addTri = [&](const XMFLOAT3& p0, const XMFLOAT3& p1, const XMFLOAT3& p2)
+			{
+				circle.emplace_back(DxRenderer::Vertex{ p0, fillCol });
+				circle.emplace_back(DxRenderer::Vertex{ p1, fillCol });
+				circle.emplace_back(DxRenderer::Vertex{ p2, fillCol });
+			};
+
+		const float cx = hit->x;
+		const float cy = hit->y;
+		const float cz = hit->z;
+
+		constexpr float PI = 3.14159265358979323846f;
+
+		for (int s = 0; s < segs; ++s)
+		{
+			float a0 = 2.0f * PI * (static_cast<float>(s) / segs);
+			float a1 = 2.0f * PI * (static_cast<float>(s + 1) / segs);
+			XMFLOAT3 p0{ cx, cy, cz };
+			XMFLOAT3 p1{ cx, cy + r * std::cos(a0), cz + r * std::sin(a0) };
+			XMFLOAT3 p2{ cx, cy + r * std::cos(a1), cz + r * std::sin(a1) };
+			addTri(p0, p1, p2);
+		}
+	}
+
+	const std::size_t ns = verts.size();
+	double trajSec = (ns >= 2) ? (static_cast<double>(ns - 1) * p.Dt_s) : 0.0;
+
+	m_TrajectoryVertsList[i] = std::move(verts);
+	m_CircleVertsList[i] = std::move(circle);
+	m_TimeElapsed_s[i] = 0.0;
+	m_VisibleCounts[i] = (ns > 0 ? 1u : 0u);
+	m_TrajDuration_s[i] = trajSec;
+}
+
 void App::ReloadConfigAndBuild()
 {
 	using namespace PitchSim;
@@ -171,9 +389,17 @@ void App::ReloadConfigAndBuild()
 
 	m_Pitches.clear();
 
+	/*
 	if (!LoadPitchConfigFile("pitches.txt", m_Pitches, 8))
 	{
 		MessageBox(m_HWND, L"Failed to load pitches.txt.", L"Error", MB_OK | MB_ICONERROR);
+		throw std::exception();
+	}
+	*/
+
+	if (!LoadPitchConfigFileEx("pitches.txt", m_Pitches, 8))
+	{
+		MessageBox(m_HWND, L"LoadPitchConfigFileEx() Failed to load pitches.txt.", L"Error", MB_OK | MB_ICONERROR);
 		throw std::exception();
 	}
 
@@ -198,9 +424,11 @@ void App::ReloadConfigAndBuild()
 #endif
 	for (int i = 0; i < static_cast<int>(N); ++i)
 	{
-		const PitchEntry& pe = x.m_Pitches[i];
+		PitchEntry& pe = x.m_Pitches[i];
 
-		SimParams p = m_Params;
+		SetRandomValue(pe);
+
+		SimParams p = x.m_Params;
 		p.InitialSpeed_mps = KmphToMps(pe.Speed_kmh);
 		p.SpinAxis = pe.Axis;
 		p.SpinRPM = pe.Rpm;
@@ -268,7 +496,7 @@ void App::ReloadConfigAndBuild()
 
 		if (hit.has_value())
 		{
-			const float r = static_cast<float>(m_Params.Radius_mm * 1e-3);
+			const float r = static_cast<float>(x.m_Params.Radius_mm * 1e-3);
 			const int segs = 48;
 			const XMFLOAT4 fillCol{ base.x, base.y, base.z, 0.35f };
 			circle.reserve(segs * 3);
@@ -307,7 +535,6 @@ void App::ReloadConfigAndBuild()
 		x.m_TrajDuration_s[i] = trajSec;
 	}
 
-	m_DrawLength_m = 0.0f;
 	m_Animate = true;
 }
 
@@ -908,4 +1135,11 @@ void App::BuildStrikeZone()
 	addLine(XMFLOAT3{ x, yH2, zL }, XMFLOAT3{ x, yH2, zR }, meshCol);
 
 	m_Renderer.UploadStrikeZoneVertices(m_StrikeVerts);
+}
+
+double App::GenerateRandom(double min, double max)
+{
+	thread_local std::mt19937_64 gen{ static_cast<uint64_t>(std::hash<std::thread::id>{}(std::this_thread::get_id())) ^ static_cast<uint64_t>(__rdtsc())};
+	std::uniform_real_distribution<double> dist{ min, max };
+	return dist(gen);
 }
