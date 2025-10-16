@@ -45,6 +45,36 @@ void App::RestartAnimationForAll() noexcept
 	}
 }
 
+void App::RestartAnimationForIndexWithoutRecompute(std::size_t i) noexcept
+{
+	if (i >= m_TrajectoryVertsList.size())
+	{
+		return;
+	}
+
+	const std::size_t n = m_TrajectoryVertsList[i].size();
+
+	if (i < m_TimeElapsed_s.size())
+	{
+		m_TimeElapsed_s[i] = 0;
+	}
+
+	if (i < m_VisibleCounts.size())
+	{
+		m_VisibleCounts[i] = (n == 0 ? 0u : (n == 1 ? 1u : 2u));
+	}
+
+	m_Animate = true;
+}
+
+void App::RestartAnimationForAllWithoutRecompute() noexcept
+{
+	for (std::size_t i = 0; i < m_TrajectoryVertsList.size(); ++i)
+	{
+		RestartAnimationForIndexWithoutRecompute(i);
+	}
+}
+
 namespace
 {
 	LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -392,14 +422,6 @@ void App::ReloadConfigAndBuild()
 	using namespace PitchSim::Config;
 
 	m_Pitches.clear();
-
-	/*
-	if (!LoadPitchConfigFile("pitches.txt", m_Pitches, 8))
-	{
-		MessageBox(m_HWND, L"Failed to load pitches.txt.", L"Error", MB_OK | MB_ICONERROR);
-		throw std::exception();
-	}
-	*/
 
 	if (!LoadPitchConfigFileEx("pitches.txt", m_Pitches, 8))
 	{
@@ -900,8 +922,22 @@ int App::Run()
 
 					double speedKmh = (i < m_Pitches.size()) ? m_Pitches[i].Speed_kmh : m_Params.InitialSpeed_mps * 3.6;
 					double rpm = (i < m_Pitches.size()) ? m_Pitches[i].Rpm : m_Params.SpinRPM;
+					double x = (i < m_Pitches.size()) ? m_Pitches[i].Axis.X : m_Params.SpinAxis.X;
+					double y = (i < m_Pitches.size()) ? m_Pitches[i].Axis.Y : m_Params.SpinAxis.Y;
+					double z = (i < m_Pitches.size()) ? m_Pitches[i].Axis.Z : m_Params.SpinAxis.Z;
+					double e = (i < m_Pitches.size()) ? m_Pitches[i].Elevation_deg.has_value() ? m_Pitches[i].Elevation_deg.value() : m_Params.Elevation_deg : m_Params.Elevation_deg;
+					double a = (i < m_Pitches.size()) ? m_Pitches[i].Azimuth_deg.has_value() ? m_Pitches[i].Azimuth_deg.value() : m_Params.Azimuth_deg : m_Params.Azimuth_deg;
 
-					std::wstring text = std::format(L"{}: {} {:.0f} km/h {:.0f} RPM",i+1, label, speedKmh, rpm);
+					std::wstring text;
+
+					if (!m_ShowDetail)
+					{
+						text = std::format(L"{}: {} {:.0f} km/h {:.0f} RPM", i + 1, label, speedKmh, rpm);
+					}
+					else
+					{
+						text = std::format(L"{}: {} {:.1f} km/h {:.1f} RPM Axis({:.5f}, {:.5f}, {:.5f}) Elevation={:.5f} Azimuth={:.5f}", i + 1, label, speedKmh, rpm, x, y, z, e, a);
+					}
 
 					D2D1_COLOR_F col = D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.98f);
 
@@ -1017,7 +1053,6 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				if (idx >= 0 && idx < static_cast<int>(m_TrajectoryVertsList.size()))
 				{
 					m_FilterSingle = true;
-					m_FilterIndex = idx;
 
 					if (!std::ranges::contains(m_FilterIndexList, idx))
 					{
@@ -1033,6 +1068,51 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 						RestartAnimationForIndex(i);
 					}
 				}
+
+				return 0;
+			}
+			else if (wParam >= VK_F1 && wParam <= VK_F8)
+			{
+				int idx = static_cast<int>(wParam - VK_F1);
+				if (idx >= 0 && idx < static_cast<int>(m_TrajectoryVertsList.size()))
+				{
+					m_FilterSingle = true;
+
+					if (!std::ranges::contains(m_FilterIndexList, idx))
+					{
+						m_FilterIndexList.emplace_back(idx);
+					}
+					else
+					{
+						m_FilterIndexList.erase(std::remove(m_FilterIndexList.begin(), m_FilterIndexList.end(), idx));
+					}
+
+					for (auto i : m_FilterIndexList)
+					{
+						RestartAnimationForIndexWithoutRecompute(i);
+					}
+				}
+
+				return 0;
+			}
+			else if (wParam == VK_F9)
+			{
+				for (auto i : m_FilterIndexList)
+				{
+					RestartAnimationForIndexWithoutRecompute(i);
+				}
+
+				return 0;
+			}
+			else if (wParam == VK_F10)
+			{
+				RestartAnimationForAllWithoutRecompute();
+
+				return 0;
+			}
+			else if (wParam == VK_TAB)
+			{
+				m_ShowDetail = !m_ShowDetail;
 
 				return 0;
 			}

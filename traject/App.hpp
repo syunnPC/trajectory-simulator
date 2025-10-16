@@ -50,6 +50,8 @@ private:
 	void BuildStrikeZone();
 	void RecalcTrajectForIndex(std::size_t i);
 	bool IsPitchRequireRecalc(std::size_t i);
+	void RestartAnimationForIndexWithoutRecompute(std::size_t i) noexcept;
+	void RestartAnimationForAllWithoutRecompute() noexcept;
 
 	void RebuildPackedVBs();
 
@@ -80,6 +82,8 @@ private:
 
 	bool m_ShowBalls{ true };
 
+	bool m_ShowDetail{ false };
+
 	double m_StrikeZoneHeight_m;
 	double m_StrikeZoneSizeHeight_m;
 
@@ -87,7 +91,7 @@ private:
 
 	int m_FilterIndex{ -1 };
 
-	int m_Subdivide{ 8 }; //ファイルからの設定を今度実装
+	int m_Subdivide{ 8 };
 
 	double m_PlateDistance_m{ 18.44 };
 
