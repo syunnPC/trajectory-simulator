@@ -1,8 +1,11 @@
 #include "TrajectorySimulator.hpp"
 
 #include <algorithm>
+#include <memory>
 #include <limits>
 #include <cmath>
+
+#include "App.hpp"
 
 namespace PitchSim
 {
@@ -134,8 +137,10 @@ namespace PitchSim
 
 		while (steps < maxSteps)
 		{
+			extern std::unique_ptr<App> gApp;
+
 			traveled_m = p.X;
-			if (traveled_m >= PLATE_DISTANCE_M)
+			if (traveled_m >= gApp->GetPlateDistance())
 			{
 				break;
 			}

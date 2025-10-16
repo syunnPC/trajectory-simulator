@@ -35,6 +35,11 @@ public:
 
 	static double GenerateRandom(double min, double max);
 
+	inline double GetPlateDistance()
+	{
+		return m_PlateDistance_m;
+	}
+
 private:
 	void Recompute();
 	void BuildGroundGrid();
@@ -82,7 +87,9 @@ private:
 
 	int m_FilterIndex{ -1 };
 
-	int m_Subdivide{ 16 }; //ファイルからの設定を今度実装
+	int m_Subdivide{ 8 }; //ファイルからの設定を今度実装
+
+	double m_PlateDistance_m{ 18.44 };
 
 	bool m_Animate{ true };
 	std::chrono::steady_clock::time_point m_LastTick;

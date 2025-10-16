@@ -64,6 +64,7 @@ namespace PitchSim::Config
 		std::optional<double> ZoneHeight_m;
 		std::optional<int> MsaaCount;
 		std::optional<int> GraphicQuality;
+		std::optional<double> PlateDistance_m;
 	};
 
 	bool LoadPitchConfigFile(const std::string& pathUtf8, std::vector<PitchEntry>& outList, std::size_t maxCount = 8);

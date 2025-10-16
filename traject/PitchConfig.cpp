@@ -842,9 +842,7 @@ namespace PitchSim::Config
 
 			if (!currentLabel.empty())
 			{
-				double spd = 0.0;
 				PitchSim::DVec3 axis{ 0.0, 0.0, 0.0 };
-				double rpm = 0.0;
 
 				std::optional<double> rel;
 				std::optional<double> elv;
@@ -938,6 +936,7 @@ namespace PitchSim::Config
 		constexpr auto ZONE_SIZE_HEIGHT_KEY = "ZONESIZEHEIGHT";
 		constexpr auto MSAA_COUNT_KEY = "MSAA";
 		constexpr auto QUALITY_KEY = "QUALITY";
+		constexpr auto PLATE_DIST_KEY = "DISTANCE";
 
 		if (set[PRESSURE_SETTING_KEY] != "")
 		{
@@ -1092,6 +1091,18 @@ namespace PitchSim::Config
 			try
 			{
 				s.GraphicQuality = std::stoi(set[QUALITY_KEY]);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+
+		if (set[PLATE_DIST_KEY] != "")
+		{
+			try
+			{
+				s.PlateDistance_m = std::stod(set[PLATE_DIST_KEY]);
 			}
 			catch (...)
 			{

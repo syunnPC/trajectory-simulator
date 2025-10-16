@@ -246,6 +246,8 @@ namespace
 		{
 			return false;
 		}
+
+		return true;
 	}
 }
 
@@ -312,7 +314,7 @@ void App::RecalcTrajectForIndex(std::size_t i)
 		verts.emplace_back(DxRenderer::Vertex{ XMFLOAT3{pts[k].X, pts[k].Y, pts[k].Z }, col });
 	}
 
-	const float plateX = PLATE_DISTANCE_M;
+	const float plateX = m_PlateDistance_m;
 	const std::size_t vn = verts.size();
 	std::optional<XMFLOAT3> hit;
 
@@ -467,7 +469,7 @@ void App::ReloadConfigAndBuild()
 			verts.emplace_back(DxRenderer::Vertex{ XMFLOAT3{pts[k].X, pts[k].Y, pts[k].Z }, col });
 		}
 
-		const float plateX = PLATE_DISTANCE_M;
+		const float plateX = m_PlateDistance_m;
 		const std::size_t vn = verts.size();
 		std::optional<XMFLOAT3> hit;
 
@@ -646,6 +648,11 @@ bool App::Initialize(HINSTANCE hInstance)
 		{
 			m_Subdivide = es.GraphicQuality.value();
 		}
+
+		if (es.PlateDistance_m.has_value())
+		{
+			m_PlateDistance_m = es.PlateDistance_m.value();
+		}
 	}
 
 	if (!m_Renderer.Initialize(m_HWND, w, h))
@@ -655,10 +662,11 @@ bool App::Initialize(HINSTANCE hInstance)
 
 	m_Camera.SetViewportSize(w, h);
 	m_Camera.SetProjection(60.0f, 0.01f, 500.0f);
-	m_Camera.SetCenter(XMFLOAT3(9.22f, 0.0f, 0.0f));
+	m_Camera.SetCenter(XMFLOAT3(m_PlateDistance_m / 2.0f, 0.0f, 0.0f));
 	m_Camera.SetRadiusLimits(3.0f, 60.0f);
 	
 	BuildGroundGrid();
+
 	try
 	{
 		ReloadConfigAndBuild();
@@ -667,6 +675,7 @@ bool App::Initialize(HINSTANCE hInstance)
 	{
 		return false;
 	}
+
 	BuildStrikeZone();
 
 	Recompute();
@@ -1002,9 +1011,9 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				m_ShowBalls = !m_ShowBalls;
 				return 0;
 			}
-			else if (wParam >= '1' && wParam <= '8')
+			else if ((wParam >= '1' && wParam <= '8') || (wParam >= VK_NUMPAD1 && wParam <= VK_NUMPAD8))
 			{
-				int idx = static_cast<int>(wParam - '1');
+				int idx = wParam <= '8' ? static_cast<int>(wParam - '1') : static_cast<int>(wParam - VK_NUMPAD1);
 				if (idx >= 0 && idx < static_cast<int>(m_TrajectoryVertsList.size()))
 				{
 					m_FilterSingle = true;
@@ -1027,7 +1036,7 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 				return 0;
 			}
-			else if (wParam == '0')
+			else if (wParam == '0' || wParam == VK_NUMPAD0)
 			{
 				m_FilterSingle = false;
 				m_FilterIndex = -1;
@@ -1038,7 +1047,7 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 				return 0;
 			}
-			else if (wParam == '9')
+			else if (wParam == '9' || wParam == VK_NUMPAD9)
 			{
 				m_FilterSingle = true;
 				m_FilterIndexList.clear();
@@ -1073,7 +1082,7 @@ void App::BuildGroundGrid()
 	m_GroundVerts.clear();
 
 	float xMin = -1.0f;
-	float xMax = 20.0f;
+	float xMax = static_cast<int>(m_PlateDistance_m + 1.0f);
 	float zMin = -6.0f;
 	float zMax = 6.0f;
 	float step = 1.0f;
@@ -1104,7 +1113,7 @@ void App::BuildStrikeZone()
 {
 	m_StrikeVerts.clear();
 
-	const float x = 18.44f;
+	const float x = m_PlateDistance_m;
 	const float halfW = 0.216f;
 	const float y0 = static_cast<const float>(m_StrikeZoneHeight_m);
 	const float y1 = y0 + static_cast<const float>(m_StrikeZoneSizeHeight_m);
