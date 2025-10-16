@@ -1,5 +1,7 @@
 #include "App.hpp"
 
+#include <fstream>
+
 #include <shellapi.h>
 
 extern std::unique_ptr<App> gApp;
@@ -24,7 +26,7 @@ namespace
 			}
 			if (i + 1 == argc)
 			{
-				r.emplace_back(AppParam{ key, L"" });
+				r.emplace_back(AppParam{ L"", key});
 				break;
 			}
 			LPWSTR value = argv[++i];

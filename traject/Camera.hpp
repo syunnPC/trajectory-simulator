@@ -31,6 +31,8 @@ public:
 
 	DirectX::XMFLOAT3 GetEyePosition() const noexcept;
 
+	DirectX::XMFLOAT3 GetCenter() const noexcept;
+
 private:
 	float m_YawRad;
 	float m_PitchRad;

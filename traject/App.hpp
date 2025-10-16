@@ -92,6 +92,9 @@ private:
 	int m_Subdivide{ 8 };
 	double m_PlateDistance_m{ 18.44 };
 
+	int m_PrevX{ 1280 };
+	int m_PrevY{ 720 };
+
 	bool m_Animate{ true };
 	std::chrono::steady_clock::time_point m_LastTick;
 

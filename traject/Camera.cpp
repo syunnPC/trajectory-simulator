@@ -152,3 +152,8 @@ XMFLOAT3 OrbitCamera::GetEyePosition() const noexcept
 	
 	return eye;
 }
+
+XMFLOAT3 OrbitCamera::GetCenter() const noexcept
+{
+	return m_Center;
+}

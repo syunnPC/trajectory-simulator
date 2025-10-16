@@ -1011,10 +1011,14 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 			std::uint32_t w = static_cast<std::uint32_t>(LOWORD(lParam));
 			std::uint32_t h = static_cast<std::uint32_t>(HIWORD(lParam));
+
 			if (w == 0 || h == 0)
 			{
 				return 0;
 			}
+
+			m_PrevX = m_Renderer.GetHeight();
+			m_PrevY = m_Renderer.GetWidth();
 
 			m_Renderer.Resize(w, h);
 			m_Camera.SetViewportSize(w, h);
@@ -1060,12 +1064,7 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 		case WM_KEYDOWN:
 		{
-			if (wParam == VK_ESCAPE)
-			{
-				DestroyWindow(hwnd);
-				return 0;
-			}
-			else if (wParam == VK_SPACE)
+			if (wParam == VK_SPACE)
 			{
 				if (m_FilterSingle)
 				{
@@ -1180,6 +1179,54 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			else if (wParam == 'Z')
 			{
 				m_ShowStrikeZone = !m_ShowStrikeZone;
+				return 0;
+			}
+			else if (wParam == 'W')
+			{
+				auto p = m_Camera.GetCenter();
+				p.x -= 0.1;
+				m_Camera.SetCenter(p);
+
+				return 0;
+			}
+			else if (wParam == 'S')
+			{
+				auto p = m_Camera.GetCenter();
+				p.x +=0.1;
+				m_Camera.SetCenter(p);
+
+				return 0;
+			}
+			else if (wParam == 'A')
+			{
+				auto p = m_Camera.GetCenter();
+				p.z -= 0.1;
+				m_Camera.SetCenter(p);
+
+				return 0;
+			}
+			else if (wParam == 'D')
+			{
+				auto p = m_Camera.GetCenter();
+				p.z += 0.1;
+				m_Camera.SetCenter(p);
+
+				return 0;
+			}
+			else if (wParam == VK_CONTROL)
+			{
+				auto p = m_Camera.GetCenter();
+				p.y += 0.1;
+				m_Camera.SetCenter(p);
+
+				return 0;
+			}
+			else if (wParam == VK_SHIFT)
+			{
+				auto p = m_Camera.GetCenter();
+				p.y -= 0.1;
+				m_Camera.SetCenter(p);
+
 				return 0;
 			}
 			else
