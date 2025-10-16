@@ -10,6 +10,36 @@ using namespace PitchSim;
 
 std::unique_ptr<App> gApp;
 
+namespace
+{
+	std::string ConvertWStringToString(std::wstring& str)
+	{
+		int sz = WideCharToMultiByte(CP_OEMCP, 0, str.c_str(), -1, nullptr, 0, nullptr, nullptr);
+		char* ptr = new char[sz];
+		WideCharToMultiByte(CP_OEMCP, 0, str.c_str(), -1, ptr, sz, nullptr, nullptr);
+		std::string res{ ptr };
+		delete[] ptr;
+
+		return res;
+	}
+}
+
+std::optional<std::wstring> GetValueForKey(std::wstring key, const std::vector<AppParam>& p)
+{
+	std::optional<std::wstring> v;
+
+	for (const auto i : p)
+	{
+		if (i.ParamKey == key)
+		{
+			v = i.ParamValue;
+			return v;
+		}
+	}
+
+	return v;
+}
+
 void App::RestartAnimationForIndex(std::size_t i) noexcept
 {
 	if (i >= m_TrajectoryVertsList.size())
@@ -423,9 +453,9 @@ void App::ReloadConfigAndBuild()
 
 	m_Pitches.clear();
 
-	if (!LoadPitchConfigFileEx("pitches.txt", m_Pitches, 8))
+	if (!LoadPitchConfigFileEx(ConvertWStringToString(m_PitchConfigFilePath), m_Pitches, 8))
 	{
-		MessageBox(m_HWND, L"LoadPitchConfigFileEx() Failed to load pitches.txt.", L"Error", MB_OK | MB_ICONERROR);
+		MessageBox(m_HWND, L"LoadPitchConfigFileEx() Failed to load file.", m_PitchConfigFilePath.c_str(), MB_OK | MB_ICONERROR);
 		throw std::exception();
 	}
 
@@ -565,7 +595,7 @@ void App::ReloadConfigAndBuild()
 	m_Animate = true;
 }
 
-bool App::Initialize(HINSTANCE hInstance)
+bool App::Initialize(HINSTANCE hInstance, std::vector<AppParam>& param)
 {
 	WNDCLASSEX wc{ sizeof(WNDCLASSEX) };
 	wc.style = CS_CLASSDC;
@@ -591,6 +621,19 @@ bool App::Initialize(HINSTANCE hInstance)
 		return false;
 	}
 
+	auto c = GetValueForKey(L"env", param);
+	auto p = GetValueForKey(L"pitch", param);
+
+	if (c.has_value())
+	{
+		m_EnvConfigFilePath = c.value();
+	}
+
+	if (p.has_value())
+	{
+		m_PitchConfigFilePath = p.value();
+	}
+
 	ShowWindow(m_HWND, SW_SHOW);
 
 	m_Params.ReleaseHeight_cm = 180.0;
@@ -614,7 +657,7 @@ bool App::Initialize(HINSTANCE hInstance)
 
 	PitchSim::Config::EnvironmentSettings es{};
 
-	if (PitchSim::Config::LoadEnvConfigFile("envconfig.txt", es))
+	if (PitchSim::Config::LoadEnvConfigFile(ConvertWStringToString(m_EnvConfigFilePath), es))
 	{
 		if (es.Pressure_hPa.has_value())
 		{
@@ -811,7 +854,7 @@ void App::UpdateAnimation(double dt_s)
 	}
 }
 
-int App::Run()
+int App::Run(std::vector<AppParam>& param)
 {
 	MSG msg{};
 

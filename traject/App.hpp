@@ -19,6 +19,15 @@
 #include "PitchConfig.hpp"
 #include "Physics.hpp"
 
+struct AppParam
+{
+	AppParam(std::wstring key, std::wstring value) : ParamValue{ value }, ParamKey{ key } {}
+	std::wstring ParamKey;
+	std::wstring ParamValue;
+};
+
+std::optional<std::wstring> GetValueForKey(std::wstring key, const std::vector<AppParam>& p);
+
 class App
 {
 public:
@@ -28,8 +37,8 @@ public:
 
 	App& operator=(const App&) = delete;
 
-	bool Initialize(HINSTANCE hInstance);
-	int Run();
+	bool Initialize(HINSTANCE hInstance, std::vector<AppParam>& param);
+	int Run(std::vector<AppParam>& param);
 
 	LRESULT HandleMessage(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
 
@@ -55,44 +64,32 @@ private:
 
 	void RebuildPackedVBs();
 
+	std::wstring m_EnvConfigFilePath{ L"envconfig.txt" };
+	std::wstring m_PitchConfigFilePath{ L"pitches.txt" };
+
 	HWND m_HWND{ nullptr };
 	DxRenderer m_Renderer;
 	OrbitCamera m_Camera;
 	PitchSim::TrajectorySimulator m_Simulator;
-
 	std::vector<DxRenderer::Vertex> m_Vertices;
 	std::vector<DxRenderer::Vertex> m_GroundVerts;
 	std::vector<std::size_t> m_VisibleCounts;
-
 	std::vector<PitchSim::Config::PitchEntry> m_Pitches;
-
 	std::vector<DxRenderer::Vertex> m_StrikeVerts;
-
 	std::vector<std::vector<DxRenderer::Vertex>> m_CircleVertsList;
 
 	bool m_ShowStrikeZone{ true };
-
 	PitchSim::SimParams m_Params;
-
 	bool m_MouseDown{ false };
-
 	bool m_ShowLabels{ true };
-
 	bool m_FilterSingle{ false };
-
 	bool m_ShowBalls{ true };
-
 	bool m_ShowDetail{ false };
-
 	double m_StrikeZoneHeight_m;
 	double m_StrikeZoneSizeHeight_m;
-
 	std::vector<std::size_t> m_FilterIndexList;
-
 	int m_FilterIndex{ -1 };
-
 	int m_Subdivide{ 8 };
-
 	double m_PlateDistance_m{ 18.44 };
 
 	bool m_Animate{ true };
