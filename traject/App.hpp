@@ -88,7 +88,6 @@ private:
 	double m_StrikeZoneHeight_m;
 	double m_StrikeZoneSizeHeight_m;
 	std::vector<std::size_t> m_FilterIndexList;
-	int m_FilterIndex{ -1 };
 	int m_Subdivide{ 8 };
 	double m_PlateDistance_m{ 18.44 };
 

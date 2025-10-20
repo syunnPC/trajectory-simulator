@@ -1161,8 +1161,6 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			else if (wParam == '0' || wParam == VK_NUMPAD0)
 			{
 				m_FilterSingle = false;
-				m_FilterIndex = -1;
-
 				m_FilterIndexList.clear();
 
 				RestartAnimationForAll();
@@ -1227,6 +1225,17 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				p.y -= 0.1;
 				m_Camera.SetCenter(p);
 
+				return 0;
+			}
+			else if (wParam == 'R')
+			{
+				static std::random_device r{};
+				static std::uniform_int_distribution<int> g{ 0, static_cast<int>(m_TrajectoryVertsList.size()) - 1};
+
+				m_FilterSingle = true;
+				m_FilterIndexList.clear();
+				m_FilterIndexList.emplace_back(g(r));
+				RestartAnimationForIndex(m_FilterIndexList[0]);
 				return 0;
 			}
 			else
